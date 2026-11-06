@@ -44,8 +44,14 @@ Aplikasi ini dirancang khusus untuk toko kelontong, agen sembako, dan toko rokok
 6. **Cetak Struk Nota Siap Pakai**:
    - Format nota rapi yang kompatibel dengan printer kasir termal (58mm / 80mm) maupun printer biasa.
 
-7. **Akses Multi-Device & Multi-User Sekaligus**:
-   - Dapat diakses bersamaan dari komputer kasir, laptop, tablet, maupun smartphone Android/iOS.
+7. **Akses Multi-Device & Multi-Kasir Sekaligus**:
+   - Dapat diakses bersamaan dari beberapa komputer kasir, laptop, tablet, maupun smartphone Android/iOS menggunakan link web dan database spreadsheet yang sama.
+
+8. **Nomor Kasir, Shift Pegawai & Rekap Tutup Shift (Closing Shift)**:
+   - **Nomor / Loket Kasir**: Atur identitas kasir per perangkat (misal: *Kasir 01*, *Kasir 02*, *Kasir 03*).
+   - **Nama Pegawai & Shift**: Atur nama kasir yang sedang bertugas (*Budi*, *Siti*, dll.) serta shift kerjanya (*Shift 1 Pagi*, *Shift 2 Siang*, *Shift 3 Malam*, atau *Full Day*).
+   - **Rekap Tutup Shift (Closing Kasir)**: Kasir dapat melihat rekap penerimaan uang tunai (cash fisik di laci kasir) yang harus disetor, total omset, non-tunai (Transfer/QRIS/Bon), dan mencetak struk penutupan shift ke printer thermal.
+   - **Struk & Laporan Rapi**: Setiap struk nota mencantumkan No. Kasir, Nama Pegawai, dan Shift yang bertugas. Di Google Sheets, kolom kasir tercatat lengkap.
 
 ---
 
