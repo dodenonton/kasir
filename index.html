@@ -40,15 +40,15 @@
           <!-- Mobile Right Controls (Online Badge, Segarkan & Admin Button) -->
           <div class="flex items-center gap-1.5 md:hidden shrink-0">
             <!-- Online/Offline Badge Compact Mobile -->
-            <div id="networkStatusBadge" class="flex items-center space-x-1 h-7 px-2 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" id="statusDot"></span>
-              <span id="statusText">Online</span>
+            <div id="networkStatusBadgeMobile" class="network-status-badge flex items-center space-x-1 h-7 px-2 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse status-dot"></span>
+              <span class="status-text">Online</span>
             </div>
 
             <!-- Role Toggle Button Compact Mobile -->
-            <button id="roleToggleBtn" onclick="app.openRoleChoiceModal()" class="flex items-center space-x-1 h-7 px-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[10px] font-bold shadow-xs transition active:scale-95 shrink-0">
-              <i class="fa-solid fa-user-shield text-indigo-300 text-[10px]" id="roleIcon"></i>
-              <span id="roleButtonText">Admin</span>
+            <button onclick="app.openRoleChoiceModal()" class="role-toggle-btn flex items-center space-x-1 h-7 px-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[10px] font-bold shadow-xs transition active:scale-95 shrink-0">
+              <i class="fa-solid fa-user-shield text-indigo-300 text-[10px] role-icon"></i>
+              <span class="role-btn-text">Admin</span>
             </button>
 
             <!-- Refresh Button Compact Mobile -->
@@ -66,8 +66,20 @@
             <!-- Injected dynamically by app.updateCashierShiftUI() -->
           </div>
 
-          <!-- Desktop Only Controls -->
+          <!-- Desktop Controls (Online/Offline, Admin Role Button, Refresh & Pending Sync) -->
           <div class="hidden md:flex items-center gap-2 shrink-0">
+            <!-- Online/Offline Badge (Desktop) -->
+            <div id="networkStatusBadgeDesktop" class="network-status-badge flex items-center space-x-1.5 h-9 px-3 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 transition-all duration-300">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse status-dot"></span>
+              <span class="status-text">Online</span>
+            </div>
+
+            <!-- Role Toggle Button (Desktop: Login Admin / Keluar Admin) -->
+            <button onclick="app.openRoleChoiceModal()" class="role-toggle-btn flex items-center space-x-1.5 h-9 px-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold shadow-xs transition active:scale-95">
+              <i class="fa-solid fa-user-shield text-indigo-300 role-icon"></i>
+              <span class="role-btn-text">Login Admin</span>
+            </button>
+
             <!-- Refresh / Segarkan Button (Desktop) -->
             <button onclick="app.refreshAll()" class="flex items-center space-x-1.5 h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition active:scale-95" title="Segarkan data & koneksi">
               <i class="fa-solid fa-arrows-rotate text-slate-500"></i>
@@ -96,17 +108,18 @@
         <button onclick="app.switchTab('expenses')" id="tab-expenses" class="nav-tab">
           <i class="fa-solid fa-file-invoice-dollar mr-1.5"></i>Pengeluaran Biaya
         </button>
-        <!-- Admin only tabs -->
-        <button onclick="app.switchTab('profitloss')" id="tab-profitloss" class="nav-tab admin-only hidden">
+        <!-- Manager tabs (Pemilik & Admin) -->
+        <button onclick="app.switchTab('profitloss')" id="tab-profitloss" class="nav-tab manager-tab hidden">
           <i class="fa-solid fa-chart-line mr-1.5"></i>Laba Rugi
         </button>
-        <button onclick="app.switchTab('products')" id="tab-products" class="nav-tab admin-only hidden">
+        <button onclick="app.switchTab('products')" id="tab-products" class="nav-tab manager-tab hidden">
           <i class="fa-solid fa-boxes-stacked mr-1.5"></i>Master Produk & Stok
         </button>
-        <button onclick="app.switchTab('employees')" id="tab-employees" class="nav-tab admin-only hidden">
+        <button onclick="app.switchTab('employees')" id="tab-employees" class="nav-tab manager-tab hidden">
           <i class="fa-solid fa-users-gear mr-1.5"></i>Kelola Pegawai
         </button>
-        <button onclick="app.switchTab('settings')" id="tab-settings" class="nav-tab admin-only hidden">
+        <!-- Owner only tabs (Khusus Pemilik - Hilang saat login Admin) -->
+        <button onclick="app.switchTab('settings')" id="tab-settings" class="nav-tab owner-tab hidden">
           <i class="fa-solid fa-gear mr-1.5"></i>Pengaturan Database
         </button>
       </nav>
@@ -124,10 +137,10 @@
 
     <!-- ==================== TAB 1: KASIR (POS) ==================== -->
     <section id="view-pos" class="tab-view block">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start lg:h-[calc(100vh-140px)] lg:overflow-hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start lg:items-stretch lg:h-[calc(100vh-140px)] lg:overflow-hidden">
         
         <!-- Left: Product Catalog & Search (7 Cols on LG, 8 Cols on XL) -->
-        <div class="lg:col-span-7 xl:col-span-8 flex flex-col lg:h-full lg:overflow-hidden space-y-3.5 lg:space-y-0 lg:gap-3.5">
+        <div class="lg:col-span-7 xl:col-span-8 flex flex-col lg:h-full lg:overflow-hidden space-y-3.5 lg:space-y-0 lg:gap-3.5 min-h-0">
           <!-- Search & Filter Bar (Fixed on top of left panel on PC) -->
           <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-xs border border-slate-200/90 shrink-0">
             <div class="flex flex-col sm:flex-row sm:items-center gap-2.5">
@@ -149,7 +162,7 @@
           </div>
 
           <!-- Independent Scroll Wrapper for Product Catalog on PC -->
-          <div class="lg:flex-1 lg:overflow-y-auto lg:pr-1.5 lg:pb-2 custom-scroll">
+          <div class="lg:flex-1 lg:overflow-y-auto lg:pr-1.5 lg:pb-2 custom-scroll min-h-0">
             <!-- Product Grid: 1 col on mobile, 2 cols on tablet/laptop, 3 cols on wide PC -->
             <div id="posProductGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-3.5">
               <!-- Product cards injected by app.renderPosProducts() -->
@@ -158,7 +171,7 @@
         </div>
 
         <!-- Right: Cart & Checkout (5 Cols on LG, 4 Cols on XL) - Independent Scroll on PC -->
-        <div id="posCartSection" class="lg:col-span-5 xl:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col lg:h-full lg:overflow-y-auto custom-scroll">
+        <div id="posCartSection" class="lg:col-span-5 xl:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col lg:h-full lg:overflow-y-auto custom-scroll min-h-0">
           
           <!-- Cart Header -->
           <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-white shrink-0 sticky top-0 z-10">
@@ -610,39 +623,123 @@
       </div>
     </section>
  
-    <!-- ==================== TAB 6: KELOLA PEGAWAI (ADMIN ONLY) ==================== -->
+    <!-- ==================== TAB 6: KELOLA PEGAWAI ==================== -->
     <section id="view-employees" class="tab-view hidden space-y-5">
-      <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+      <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span id="empHeaderRoleBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+              <i class="fa-solid fa-crown mr-1"></i>Akses Khusus Pemilik Toko
+            </span>
+          </div>
           <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
             <i class="fa-solid fa-users-gear text-indigo-600"></i>
-            <span>Kelola Akun Pegawai & User ID</span>
+            <span id="empHeaderTitle">Kelola Akun Admin Toko & Kasir</span>
           </h2>
-          <p class="text-xs text-slate-500">Buat User ID dan PIN khusus untuk setiap staf kasir yang melayani di toko</p>
+          <p id="empHeaderSubtitle" class="text-xs text-slate-500 mt-0.5">Buat User ID dan PIN khusus untuk mengelola Admin Toko serta Staf Kasir (Pegawai)</p>
         </div>
-        <div>
-          <button onclick="app.openEmployeeModal()" class="w-full sm:w-auto justify-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition">
-            <i class="fa-solid fa-user-plus"></i>
-            <span>Tambah Pegawai Baru</span>
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+          <button id="empBtnAddAdmin" onclick="app.openEmployeeModal(null, 'admin')" class="flex-1 sm:flex-initial justify-center px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition active:scale-95">
+            <i class="fa-solid fa-user-shield"></i>
+            <span>+ Tambah Admin Toko</span>
+          </button>
+          <button id="empBtnAddCashier" onclick="app.openEmployeeModal(null, 'cashier')" class="flex-1 sm:flex-initial justify-center px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition active:scale-95">
+            <i class="fa-solid fa-cash-register"></i>
+            <span>+ Tambah Kasir Baru</span>
           </button>
         </div>
       </div>
 
-      <!-- Employee List Table -->
-      <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+      <!-- Filter Kategori Akun -->
+      <div id="empFilterContainer" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+        <button onclick="app.setEmployeeFilter('all')" id="empFilter-all" class="emp-filter-chip active flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition shrink-0">
+          <i class="fa-solid fa-users"></i>
+          <span>Semua Akun</span>
+          <span id="badgeCountAll" class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-white/25">0</span>
+        </button>
+        <button onclick="app.setEmployeeFilter('admin')" id="empFilter-admin" class="emp-filter-chip flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition shrink-0">
+          <i class="fa-solid fa-user-shield text-blue-600"></i>
+          <span>Kelola Admin Toko</span>
+          <span id="badgeCountAdmin" class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-800">0</span>
+        </button>
+        <button onclick="app.setEmployeeFilter('cashier')" id="empFilter-cashier" class="emp-filter-chip flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition shrink-0">
+          <i class="fa-solid fa-cash-register text-emerald-600"></i>
+          <span>Kelola Kasir (Pegawai)</span>
+          <span id="badgeCountCashier" class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800">0</span>
+        </button>
+      </div>
+
+      <!-- 1. Tabel Kelola Admin Toko -->
+      <div id="adminSectionContainer" class="bg-white rounded-2xl shadow-xs border border-blue-200 overflow-hidden">
+        <div class="p-3.5 sm:p-4 bg-gradient-to-r from-blue-50/90 to-sky-50/50 border-b border-blue-100 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center text-sm shadow-xs shrink-0">
+              <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-xs sm:text-sm text-blue-950 flex items-center gap-1.5 flex-wrap">
+                <span>Daftar Akun Admin Toko</span>
+                <span class="text-[10px] font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md border border-blue-200">Akses Laba Rugi, Produk & Kasir</span>
+              </h3>
+              <p class="text-[11px] text-blue-700/80">Admin Toko memiliki akses penuh ke Laba Rugi & Master Produk, namun tidak memiliki menu Kelola Pegawai & Pengaturan Database.</p>
+            </div>
+          </div>
+          <button onclick="app.openEmployeeModal(null, 'admin')" class="text-xs font-bold text-blue-700 hover:text-blue-900 bg-white hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-300 transition shadow-2xs shrink-0">
+            <i class="fa-solid fa-plus mr-1"></i>Tambah Admin
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs whitespace-nowrap">
+            <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-4">ID Admin</th>
+                <th class="py-3 px-4">Nama Lengkap</th>
+                <th class="py-3 px-4">Peran (Role)</th>
+                <th class="py-3 px-4">PIN Login</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="adminTableBody" class="divide-y divide-slate-100">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 2. Tabel Kelola Kasir (Pegawai) -->
+      <div id="cashierSectionContainer" class="bg-white rounded-2xl shadow-xs border border-emerald-200 overflow-hidden">
+        <div class="p-3.5 sm:p-4 bg-gradient-to-r from-emerald-50/90 to-teal-50/50 border-b border-emerald-100 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-sm shadow-xs shrink-0">
+              <i class="fa-solid fa-cash-register"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-xs sm:text-sm text-emerald-950 flex items-center gap-1.5 flex-wrap">
+                <span>Daftar Akun Kasir (Pegawai)</span>
+                <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-200">Khusus Transaksi POS & Shift</span>
+              </h3>
+              <p class="text-[11px] text-emerald-700/80">Staf kasir melayani penjualan harian di loket kasir, melihat riwayat transaksi, dan mencetak rekap tutup shift.</p>
+            </div>
+          </div>
+          <button onclick="app.openEmployeeModal(null, 'cashier')" class="text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-white hover:bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-300 transition shadow-2xs shrink-0">
+            <i class="fa-solid fa-plus mr-1"></i>Tambah Kasir
+          </button>
+        </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs whitespace-nowrap">
             <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-200">
               <tr>
                 <th class="py-3 px-4">User ID</th>
-                <th class="py-3 px-4">Nama Lengkap Pegawai</th>
-                <th class="py-3 px-4">PIN Akses</th>
+                <th class="py-3 px-4">Nama Lengkap</th>
+                <th class="py-3 px-4">Peran (Role)</th>
+                <th class="py-3 px-4">PIN Login</th>
                 <th class="py-3 px-4">Kasir Default</th>
                 <th class="py-3 px-4">Status</th>
                 <th class="py-3 px-4 text-center">Aksi</th>
               </tr>
             </thead>
-            <tbody id="employeeTableBody" class="divide-y divide-slate-100">
+            <tbody id="cashierTableBody" class="divide-y divide-slate-100">
               <!-- Rendered by JS -->
             </tbody>
           </table>
@@ -650,95 +747,157 @@
       </div>
     </section>
 
-    <!-- ==================== TAB 7: PENGATURAN (ADMIN ONLY) ==================== -->
-    <section id="view-settings" class="tab-view hidden space-y-5">
-      
-      <!-- Database & Sync Settings -->
-      <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-xs border border-slate-200 max-w-3xl space-y-6">
-        <div>
-          <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-            <i class="fa-solid fa-cloud-arrow-up text-indigo-600"></i>
-            <span>Pengaturan Sinkronisasi Google Sheets</span>
-          </h2>
-          <p class="text-xs text-slate-500 mt-1">Hubungkan aplikasi kasir ini ke Google Spreadsheet Anda via Google Apps Script (GAS) Web App URL.</p>
-        </div>
+    <!-- ==================== TAB 7: PENGATURAN (KHUSUS PEMILIK TOKO) ==================== -->
+    <section id="view-settings" class="tab-view hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
-        <div class="space-y-4 text-xs">
+        <!-- SISI KIRI: PENGATURAN DATABASE & PROFIL TOKO -->
+        <div class="lg:col-span-7 bg-white p-4 sm:p-6 rounded-2xl shadow-xs border border-slate-200 space-y-6">
           <div>
-            <label class="block font-semibold text-slate-700 mb-1">Google Apps Script Web App URL</label>
-            <input type="url" id="settingGasUrl" value="https://script.google.com/macros/s/AKfycbyekZbA1vNZc-lbIvlkFqGBbV8v2KR5g8XTOe8SwdnC6z7SZEcHhemTKzX6npjgsfZwFw/exec" placeholder="https://script.google.com/macros/s/AKfycbx.../exec" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-xs">
-            <p class="text-[11px] text-slate-400 mt-1">Dapatkan URL ini setelah menerapkan (deploy) Web App di Google Sheets.</p>
+            <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <i class="fa-solid fa-cloud-arrow-up text-indigo-600"></i>
+              <span>Pengaturan Sinkronisasi Google Sheets</span>
+            </h2>
+            <p class="text-xs text-slate-500 mt-1">Hubungkan aplikasi kasir ini ke Google Spreadsheet Anda via Google Apps Script (GAS) Web App URL.</p>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="space-y-4 text-xs">
             <div>
-              <label class="block font-semibold text-slate-700 mb-1">Nama Toko</label>
-              <input type="text" id="settingStoreName" placeholder="Toko Berkah Grosir" class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+              <label class="block font-semibold text-slate-700 mb-1">Google Apps Script Web App URL</label>
+              <input type="url" id="settingGasUrl" value="https://script.google.com/macros/s/AKfycbyekZbA1vNZc-lbIvlkFqGBbV8v2KR5g8XTOe8SwdnC6z7SZEcHhemTKzX6npjgsfZwFw/exec" placeholder="https://script.google.com/macros/s/AKfycbx.../exec" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-xs">
+              <p class="text-[11px] text-slate-400 mt-1">Dapatkan URL ini setelah menerapkan (deploy) Web App di Google Sheets.</p>
             </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Nama Toko</label>
+                <input type="text" id="settingStoreName" placeholder="Toko Berkah Grosir" class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">No. Telp / WhatsApp</label>
+                <input type="text" id="settingStorePhone" placeholder="0812-3456-7890" class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+              </div>
+            </div>
+
             <div>
-              <label class="block font-semibold text-slate-700 mb-1">No. Telp / WhatsApp</label>
-              <input type="text" id="settingStorePhone" placeholder="0812-3456-7890" class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+              <label class="block font-semibold text-slate-700 mb-1">Alamat Toko</label>
+              <input type="text" id="settingStoreAddress" placeholder="Jl. Raya Pasar No. 123" class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+            </div>
+
+            <div class="pt-2 flex flex-wrap items-center gap-2.5">
+              <button onclick="app.saveSettings()" class="flex-1 sm:flex-initial justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition flex items-center">
+                <i class="fa-solid fa-floppy-disk mr-1.5"></i>Simpan Pengaturan Toko
+              </button>
+              <button onclick="app.testCloudConnection()" class="flex-1 sm:flex-initial justify-center px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition flex items-center">
+                <i class="fa-solid fa-vial mr-1.5"></i>Tes Koneksi Spreadsheet
+              </button>
             </div>
           </div>
 
-          <div>
-            <label class="block font-semibold text-slate-700 mb-1">Alamat Toko</label>
-            <input type="text" id="settingStoreAddress" placeholder="Jl. Raya Pasar No. 123" class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+          <!-- Panduan Singkat -->
+          <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-xs text-indigo-900 space-y-2">
+            <p class="font-bold flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-info"></i>
+              <span>Cara Menghubungkan ke Google Sheets:</span>
+            </p>
+            <ol class="list-decimal list-inside space-y-1 text-slate-700 text-[11px] leading-relaxed">
+              <li>Buka file <code class="bg-white px-1 py-0.5 rounded border border-indigo-200 font-mono">google-apps-script.js</code> yang telah kami sediakan di folder project ini.</li>
+              <li>Buat Google Spreadsheet baru di Google Drive Anda.</li>
+              <li>Klik menu <b>Ekstensi</b> &rarr; <b>Apps Script</b>.</li>
+              <li>Hapus kode bawaan dan tempel kode dari <code class="bg-white px-1 py-0.5 rounded border border-indigo-200 font-mono">google-apps-script.js</code>.</li>
+              <li>Klik tombol <b>Terapkan (Deploy)</b> &rarr; <b>Penerapan Baru (New Deployment)</b>.</li>
+              <li>Pilih jenis <b>Aplikasi Web (Web App)</b>, isi:
+                <ul class="list-disc list-inside pl-4 text-slate-600">
+                  <li>Jalankan sebagai: <b>Saya (Email Anda)</b></li>
+                  <li>Siapa yang memiliki akses: <b>Siapa saja (Anyone)</b></li>
+                </ul>
+              </li>
+              <li>Salin URL Aplikasi Web yang muncul dan tempelkan ke kolom URL di atas, lalu klik <b>Simpan</b>.</li>
+            </ol>
           </div>
 
-          <div>
-            <label class="block font-semibold text-slate-700 mb-1">PIN Keamanan Admin (Default: 1234)</label>
-            <input type="password" id="settingAdminPin" maxlength="6" placeholder="1234" class="w-48 px-3 py-2 border border-slate-200 rounded-lg font-mono">
-            <p class="text-[11px] text-slate-400 mt-1">PIN ini digunakan untuk membuka menu Laba Rugi, Master Barang, dan Pengaturan.</p>
+          <!-- Data Reset / Backup Section -->
+          <div class="border-t border-slate-100 pt-5 space-y-3">
+            <h3 class="font-bold text-slate-900 text-sm">Cadangan & Reset Data Lokal</h3>
+            <div class="flex flex-wrap gap-2">
+              <button onclick="app.exportLocalBackup()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">
+                <i class="fa-solid fa-download mr-1"></i>Ekspor Cadangan JSON
+              </button>
+              <button onclick="app.loadSampleData()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">
+                <i class="fa-solid fa-cube mr-1"></i>Muat Contoh Data Toko Rokok & Sembako
+              </button>
+              <button onclick="app.resetAllData()" class="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-semibold">
+                <i class="fa-solid fa-trash mr-1"></i>Reset Semua Data Lokal
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SISI KANAN: KELOLA LOGIN & UBAH NAMA PEMILIK TOKO -->
+        <div id="settingOwnerPinContainer" class="lg:col-span-5 bg-white rounded-2xl shadow-xs border border-purple-200 overflow-hidden">
+          <!-- Header Card Pemilik -->
+          <div class="p-4 sm:p-5 bg-gradient-to-r from-purple-700 to-indigo-700 text-white">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-xs flex items-center justify-center text-lg shadow-inner shrink-0">
+                  <i class="fa-solid fa-crown text-amber-300"></i>
+                </div>
+                <div>
+                  <span class="inline-block text-[10px] font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full mb-0.5">Khusus Pemilik Toko</span>
+                  <h2 class="text-sm sm:text-base font-bold leading-tight">Kelola Login & Nama Pemilik</h2>
+                </div>
+              </div>
+              <button type="button" onclick="app.addNewOwnerAccount()" class="px-3 py-2 bg-amber-400 hover:bg-amber-300 text-purple-950 font-extrabold rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 shrink-0 active:scale-95">
+                <i class="fa-solid fa-user-plus"></i>
+                <span>+ Tambah Pemilik</span>
+              </button>
+            </div>
+            <p class="text-[11px] text-purple-100 mt-2 leading-relaxed">Tambah akun pemilik baru, ubah nama tampilan pemilik, ganti PIN keamanan login, atau pindah akun pemilik yang sedang aktif.</p>
           </div>
 
-          <div class="pt-2 flex flex-wrap items-center gap-2.5">
-            <button onclick="app.saveSettings()" class="flex-1 sm:flex-initial justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition flex items-center">
-              <i class="fa-solid fa-floppy-disk mr-1.5"></i>Simpan Pengaturan
+          <div class="p-4 sm:p-5 space-y-4 text-xs">
+            <!-- Box 1: Status Sesi Pemilik Aktif & Pindah Login Pemilik -->
+            <div class="bg-purple-50/80 border border-purple-200 rounded-xl p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[11px] font-semibold text-purple-900 flex items-center gap-1.5">
+                  <i class="fa-solid fa-user-check text-purple-700"></i>
+                  <span>Login Pemilik Saat Ini:</span>
+                </span>
+                <span id="settingCurrentActiveOwner" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-700 text-white shadow-2xs">
+                  Dewa Ayu
+                </span>
+              </div>
+              <div class="pt-1 border-t border-purple-200/70 flex flex-wrap items-center justify-between gap-2">
+                <span class="text-[11px] text-purple-800">Ingin beralih ke akun pemilik lainnya?</span>
+                <button type="button" onclick="app.openPinModalForRole('owner')" class="px-3 py-1.5 bg-white hover:bg-purple-100 text-purple-800 font-bold rounded-lg border border-purple-300 text-[11px] transition flex items-center gap-1.5 shadow-2xs active:scale-95">
+                  <i class="fa-solid fa-repeat text-purple-600"></i>
+                  <span>Ubah / Ganti Login Pemilik</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Daftar Akun Pemilik (Dirender dinamis oleh JS) -->
+            <div id="ownerAccountsListContainer" class="space-y-3">
+              <!-- Injected by app.fillSettingsForm() -->
+            </div>
+
+            <!-- Tombol Tambah Pemilik Baru (di bawah daftar) -->
+            <button type="button" onclick="app.addNewOwnerAccount()" class="w-full py-2.5 px-4 bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold rounded-xl border-2 border-dashed border-purple-300 hover:border-purple-400 transition flex items-center justify-center gap-2 active:scale-98">
+              <i class="fa-solid fa-plus-circle text-purple-600"></i>
+              <span>+ Tambah Pemilik Baru</span>
             </button>
-            <button onclick="app.testCloudConnection()" class="flex-1 sm:flex-initial justify-center px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition flex items-center">
-              <i class="fa-solid fa-vial mr-1.5"></i>Tes Koneksi Spreadsheet
-            </button>
+
+            <!-- Tombol Simpan Khusus Akun Pemilik -->
+            <div class="pt-1">
+              <button type="button" onclick="app.saveOwnerAccountSettings()" class="w-full py-2.5 px-4 bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-2 active:scale-98">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>Simpan Nama & PIN Login Pemilik</span>
+              </button>
+              <p class="text-[11px] text-slate-400 text-center mt-2">Perubahan nama dan PIN langsung berlaku untuk login berikutnya maupun sesi yang sedang aktif.</p>
+            </div>
           </div>
         </div>
 
-        <!-- Panduan Singkat -->
-        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-xs text-indigo-900 space-y-2">
-          <p class="font-bold flex items-center gap-1.5">
-            <i class="fa-solid fa-circle-info"></i>
-            <span>Cara Menghubungkan ke Google Sheets:</span>
-          </p>
-          <ol class="list-decimal list-inside space-y-1 text-slate-700 text-[11px] leading-relaxed">
-            <li>Buka file <code class="bg-white px-1 py-0.5 rounded border border-indigo-200 font-mono">google-apps-script.js</code> yang telah kami sediakan di folder project ini.</li>
-            <li>Buat Google Spreadsheet baru di Google Drive Anda.</li>
-            <li>Klik menu <b>Ekstensi</b> &rarr; <b>Apps Script</b>.</li>
-            <li>Hapus kode bawaan dan tempel kode dari <code class="bg-white px-1 py-0.5 rounded border border-indigo-200 font-mono">google-apps-script.js</code>.</li>
-            <li>Klik tombol <b>Terapkan (Deploy)</b> &rarr; <b>Penerapan Baru (New Deployment)</b>.</li>
-            <li>Pilih jenis <b>Aplikasi Web (Web App)</b>, isi:
-              <ul class="list-disc list-inside pl-4 text-slate-600">
-                <li>Jalankan sebagai: <b>Saya (Email Anda)</b></li>
-                <li>Siapa yang memiliki akses: <b>Siapa saja (Anyone)</b></li>
-              </ul>
-            </li>
-            <li>Salin URL Aplikasi Web yang muncul dan tempelkan ke kolom URL di atas, lalu klik <b>Simpan</b>.</li>
-          </ol>
-        </div>
-
-        <!-- Data Reset / Backup Section -->
-        <div class="border-t border-slate-100 pt-5 space-y-3">
-          <h3 class="font-bold text-slate-900 text-sm">Cadangan & Reset Data Lokal</h3>
-          <div class="flex flex-wrap gap-2">
-            <button onclick="app.exportLocalBackup()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">
-              <i class="fa-solid fa-download mr-1"></i>Ekspor Cadangan JSON
-            </button>
-            <button onclick="app.loadSampleData()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">
-              <i class="fa-solid fa-cube mr-1"></i>Muat Contoh Data Toko Rokok & Sembako
-            </button>
-            <button onclick="app.resetAllData()" class="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-semibold">
-              <i class="fa-solid fa-trash mr-1"></i>Reset Semua Data Lokal
-            </button>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -746,7 +905,7 @@
 
   <!-- ==================== MODALS ==================== -->
 
-  <!-- 0. MODAL PILIHAN LOGIN (POPUP PILIH LOGIN ADMIN ATAU PEGAWAI) -->
+  <!-- 0. MODAL PILIHAN LOGIN (POPUP PILIH LOGIN PEMILIK, ADMIN, ATAU KASIR) -->
   <div id="loginChoiceModal" class="modal-overlay hidden">
     <div class="modal-card max-w-sm w-full p-6 text-slate-800">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -755,37 +914,51 @@
             <i class="fa-solid fa-users-gear"></i>
           </div>
           <div>
-            <h3 class="font-bold text-base text-slate-900 leading-tight">Pilih Akses Login</h3>
-            <p class="text-xs text-slate-500">Pilih masuk sebagai Admin atau Pegawai Kasir</p>
+            <h3 class="font-bold text-base text-slate-900 leading-tight">Pilih Akses Masuk</h3>
+            <p class="text-xs text-slate-500">Pilih peran akun untuk mulai menggunakan sistem</p>
           </div>
         </div>
         <button onclick="app.closeLoginChoiceModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
       </div>
 
-      <div class="py-4 space-y-3">
-        <!-- Opsi 1: Login Admin -->
-        <button onclick="app.chooseLoginRole('admin')" class="w-full p-3.5 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 border-2 border-purple-200 hover:border-purple-400 rounded-2xl flex items-center justify-between text-left transition group shadow-xs">
+      <div class="py-4 space-y-2.5">
+        <!-- Opsi 1: Login Pemilik (Dewa Ayu / Dode Eka) -->
+        <button onclick="app.chooseLoginRole('owner')" class="w-full p-3 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 border-2 border-purple-300 hover:border-purple-400 rounded-2xl flex items-center justify-between text-left transition group shadow-xs">
           <div class="flex items-center gap-3">
-            <div class="w-11 h-11 rounded-xl bg-purple-600 text-white flex items-center justify-center text-lg shadow-sm group-hover:scale-105 transition shrink-0">
-              <i class="fa-solid fa-user-shield"></i>
+            <div class="w-10 h-10 rounded-xl bg-purple-700 text-white flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition shrink-0">
+              <i class="fa-solid fa-crown"></i>
             </div>
             <div>
-              <span class="block font-bold text-sm text-purple-950">Login Admin (Pemilik)</span>
-              <span class="block text-[11px] text-purple-700 font-medium leading-tight mt-0.5">Laba rugi, ubah stok manual, & kelola pegawai</span>
+              <span class="block font-bold text-sm text-purple-950">Login Pemilik Toko</span>
+              <span id="ownerChoiceSubtitle" class="block text-[11px] text-purple-700 font-medium leading-tight mt-0.5">Dewa Ayu & Dode Eka (Kelola penuh & PIN Pemilik)</span>
             </div>
           </div>
           <i class="fa-solid fa-chevron-right text-purple-400 group-hover:translate-x-1 transition text-xs shrink-0"></i>
         </button>
 
-        <!-- Opsi 2: Login Pegawai / Kasir -->
-        <button onclick="app.chooseLoginRole('cashier')" class="w-full p-3.5 bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 border-2 border-emerald-200 hover:border-emerald-400 rounded-2xl flex items-center justify-between text-left transition group shadow-xs">
+        <!-- Opsi 2: Login Admin Toko -->
+        <button onclick="app.chooseLoginRole('admin')" class="w-full p-3 bg-gradient-to-r from-blue-50 to-sky-50 hover:from-blue-100 hover:to-sky-100 border-2 border-blue-200 hover:border-blue-400 rounded-2xl flex items-center justify-between text-left transition group shadow-xs">
           <div class="flex items-center gap-3">
-            <div class="w-11 h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg shadow-sm group-hover:scale-105 transition shrink-0">
+            <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition shrink-0">
+              <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <div>
+              <span class="block font-bold text-sm text-blue-950">Login Admin Toko</span>
+              <span class="block text-[11px] text-blue-700 font-medium leading-tight mt-0.5">Laba rugi, stok, laporan, & kasir (Dibuat Pemilik)</span>
+            </div>
+          </div>
+          <i class="fa-solid fa-chevron-right text-blue-400 group-hover:translate-x-1 transition text-xs shrink-0"></i>
+        </button>
+
+        <!-- Opsi 3: Login Pegawai / Kasir -->
+        <button onclick="app.chooseLoginRole('cashier')" class="w-full p-3 bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 border-2 border-emerald-200 hover:border-emerald-400 rounded-2xl flex items-center justify-between text-left transition group shadow-xs">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition shrink-0">
               <i class="fa-solid fa-cash-register"></i>
             </div>
             <div>
-              <span class="block font-bold text-sm text-emerald-950">Login Pegawai (Kasir)</span>
-              <span class="block text-[11px] text-emerald-700 font-medium leading-tight mt-0.5">Mulai transaksi kasir & rekap tutup shift</span>
+              <span class="block font-bold text-sm text-emerald-950">Login Kasir (Pegawai)</span>
+              <span class="block text-[11px] text-emerald-700 font-medium leading-tight mt-0.5">Buka loket transaksi & rekap tutup shift</span>
             </div>
           </div>
           <i class="fa-solid fa-chevron-right text-emerald-400 group-hover:translate-x-1 transition text-xs shrink-0"></i>
@@ -798,21 +971,32 @@
     </div>
   </div>
 
-  <!-- 1. PIN MODAL (ADMIN AUTHENTICATION) -->
+  <!-- 1. PIN MODAL (PEMILIK & ADMIN AUTHENTICATION) -->
   <div id="pinModal" class="modal-overlay hidden">
     <div class="modal-card max-w-sm w-full p-6 text-center">
-      <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
-        <i class="fa-solid fa-lock text-xl"></i>
+      <div id="pinModalIconBox" class="w-12 h-12 bg-purple-100 text-purple-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
+        <i id="pinModalIcon" class="fa-solid fa-crown text-xl"></i>
       </div>
-      <h3 class="font-bold text-base text-slate-900">Verifikasi PIN Admin</h3>
-      <p class="text-xs text-slate-500 mt-1 mb-4">Masukkan 4-6 digit PIN untuk mengakses menu Laba Rugi dan Pengaturan Toko.</p>
+      <h3 id="pinModalTitle" class="font-bold text-base text-slate-900">Login Pemilik Toko</h3>
+      <p id="pinModalSubtitle" class="text-xs text-slate-500 mt-1 mb-4">Pilih nama akun dan masukkan PIN untuk mengakses sistem.</p>
 
-      <form onsubmit="app.verifyPin(event)" class="space-y-4">
-        <input type="password" id="inputPinField" maxlength="6" autofocus placeholder="****" class="w-full text-center tracking-widest text-2xl font-bold py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-        <div id="pinErrorMsg" class="hidden text-xs text-red-500 font-medium">PIN yang Anda masukkan salah! (Default: 1234)</div>
-        <div class="flex gap-2">
+      <form onsubmit="app.verifyPin(event)" class="space-y-3.5 text-left text-xs">
+        <div>
+          <label id="pinModalSelectLabel" class="block font-semibold text-slate-700 mb-1">Pilih Akun Pemilik:</label>
+          <select id="adminSelect" required onchange="if(this.value) document.getElementById('inputPinField').focus()" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold text-slate-800 bg-white">
+            <!-- Injected by JS (Dewa Ayu, Dode Eka atau Daftar Admin) -->
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">PIN Keamanan:</label>
+          <input type="password" id="inputPinField" maxlength="6" autofocus placeholder="****" class="w-full text-center tracking-widest text-2xl font-bold py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          <div id="pinErrorMsg" class="hidden text-xs text-rose-500 font-semibold mt-1">PIN yang Anda masukkan salah!</div>
+        </div>
+
+        <div class="flex gap-2 pt-1">
           <button type="button" onclick="app.closeRoleModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-xs transition">Batal</button>
-          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-md transition">Masuk</button>
+          <button type="submit" id="pinModalSubmitBtn" class="flex-1 py-2.5 bg-purple-700 hover:bg-purple-800 text-white rounded-xl font-bold text-xs shadow-md transition">Masuk</button>
         </div>
       </form>
     </div>
@@ -1067,10 +1251,10 @@
       </div>
 
       <form onsubmit="app.processEmployeeLogin(event)" class="py-4 space-y-3.5 text-xs">
-        <!-- Pilihan User ID Pegawai -->
+        <!-- Pilihan Nama / User ID Pegawai -->
         <div>
-          <label class="block font-semibold text-slate-700 mb-1">User ID Pegawai:</label>
-          <select id="empLoginSelect" onchange="app.onEmpLoginSelectChange()" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-semibold text-slate-800 bg-white">
+          <label class="block font-semibold text-slate-700 mb-1">Pilih Nama Pegawai:</label>
+          <select id="empLoginSelect" required onchange="app.onEmpLoginSelectChange()" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-semibold text-slate-800 bg-white">
             <!-- Injected by JS -->
           </select>
           <input type="text" id="empLoginCustomUserId" placeholder="Atau ketik User ID..." class="hidden mt-1.5 w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-xs">
@@ -1149,6 +1333,14 @@
 
         <div class="grid grid-cols-2 gap-3">
           <div>
+            <label class="block font-semibold text-slate-700 mb-1">Peran Akun *</label>
+            <select id="empRoleSelect" onchange="app.onEmpRoleSelectChange()" class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white font-bold text-indigo-700">
+              <option value="cashier">Kasir (Pegawai)</option>
+              <option value="admin">Admin Toko</option>
+            </select>
+          </div>
+
+          <div id="empDefaultCashierContainer">
             <label class="block font-semibold text-slate-700 mb-1">Kasir Default</label>
             <select id="empDefaultCashier" class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white font-medium">
               <option value="Kasir 01">Kasir 01</option>
@@ -1158,19 +1350,19 @@
               <option value="Bebas">Bebas / Pilih Saat Login</option>
             </select>
           </div>
+        </div>
 
-          <div>
-            <label class="block font-semibold text-slate-700 mb-1">Status Akun</label>
-            <select id="empStatusSelect" class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white font-medium">
-              <option value="active">Aktif (Bisa Login)</option>
-              <option value="inactive">Nonaktif</option>
-            </select>
-          </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Status Akun</label>
+          <select id="empStatusSelect" class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white font-medium">
+            <option value="active">Aktif (Bisa Login)</option>
+            <option value="inactive">Nonaktif</option>
+          </select>
         </div>
 
         <div class="flex gap-2 pt-2">
           <button type="button" onclick="app.closeEmployeeModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition">Batal</button>
-          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition">Simpan Pegawai</button>
+          <button type="submit" id="empModalSubmitBtn" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition">Simpan Akun</button>
         </div>
       </form>
     </div>

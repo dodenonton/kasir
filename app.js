@@ -110,12 +110,40 @@ const DEFAULT_EXPENSES = [
   }
 ];
 
-// Initial Sample Users (Pegawai Kasir Dibuat oleh Admin)
+// Initial Owner Accounts (Dewa Ayu & Dode Eka)
+const DEFAULT_OWNERS = [
+  {
+    ownerId: "OWNER-1",
+    name: "Dewa Ayu",
+    pin: "1234",
+    role: "owner"
+  },
+  {
+    ownerId: "OWNER-2",
+    name: "Dode Eka",
+    pin: "0987",
+    role: "owner"
+  }
+];
+
+// Initial Admin Accounts (Dibuat & Dikelola oleh Pemilik)
+const DEFAULT_ADMINS = [
+  {
+    adminId: "ADMIN-1",
+    name: "Admin Toko 1",
+    pin: "3333",
+    role: "admin",
+    status: "active"
+  }
+];
+
+// Initial Sample Users (Pegawai Kasir Dibuat oleh Pemilik atau Admin)
 const DEFAULT_USERS = [
   {
     userId: "KASIR1",
     name: "Budi Santoso",
     pin: "1111",
+    role: "cashier",
     assignedCashier: "Kasir 01",
     status: "active"
   },
@@ -123,6 +151,7 @@ const DEFAULT_USERS = [
     userId: "KASIR2",
     name: "Siti Rahma",
     pin: "2222",
+    role: "cashier",
     assignedCashier: "Kasir 02",
     status: "active"
   }
@@ -131,13 +160,17 @@ const DEFAULT_USERS = [
 // APPLICATION CONTROLLER
 class KasirApp {
   constructor() {
-    this.currentRole = "cashier"; // 'cashier' or 'admin'
     this.currentCategory = "all";
     this.cart = []; // [{ product, unit, qty, subtotal, hppTotal }]
     this.isQuickStockMode = false;
     this.stockAdjustType = "add";
     this.cancelledInvoices = JSON.parse(localStorage.getItem("toko_cancelled_invoices") || "[]");
     this.activeCancelTx = null;
+    this.currentLoginModalMode = "owner"; // 'owner' or 'admin'
+    
+    // Active Account Session (Hanya 1 akun aktif per-device: 'owner' | 'admin' | 'cashier' | null)
+    this.activeSession = null;
+    this.currentRole = "cashier"; // UI state
     this.isCashierLoggedIn = false;
     
     // Load persisted state from LocalStorage
@@ -161,10 +194,10 @@ class KasirApp {
     this.renderEmployeeTable();
     this.updatePendingCount();
 
-    // Auto-prompt login kasir if not logged in yet
-    if (!this.isCashierLoggedIn && this.currentRole !== 'admin') {
+    // Prompt login jika belum ada akun aktif di device ini
+    if (!this.activeSession || this.activeSession.type === 'none') {
       setTimeout(() => {
-        this.openEmployeeLoginModal();
+        this.openRoleChoiceModal();
       }, 500);
     }
 
@@ -184,7 +217,6 @@ class KasirApp {
       storeName: "Toko Berkah Grosir & Ecer",
       storePhone: "0812-3456-7890",
       storeAddress: "Jl. Pasar Lama No. 12, Sentra Grosir",
-      adminPin: "1234",
       gasUrl: DEFAULT_GAS_URL
     };
 
@@ -198,12 +230,30 @@ class KasirApp {
     const storeHeader = document.getElementById("headerStoreName");
     if (storeHeader) storeHeader.textContent = this.settings.storeName;
 
+    // 1B. Owners (Dewa Ayu: 1234, Dode Eka: 0987)
+    const savedOwners = localStorage.getItem("toko_owners");
+    this.owners = savedOwners ? JSON.parse(savedOwners) : DEFAULT_OWNERS;
+    if (!savedOwners) this.saveOwners();
+
+    // 1C. Admins Toko
+    const savedAdmins = localStorage.getItem("toko_admins");
+    this.admins = savedAdmins ? JSON.parse(savedAdmins) : DEFAULT_ADMINS;
+    if (!savedAdmins) this.saveAdmins();
+
     // Fill settings inputs
     this.fillSettingsForm();
 
-    // 2. Products
+    // 2. Products (Pastikan selalu fallback ke DEFAULT_PRODUCTS jika data kosong atau corrupt)
     const savedProducts = localStorage.getItem("toko_products");
-    this.products = savedProducts ? JSON.parse(savedProducts) : DEFAULT_PRODUCTS;
+    let loadedProducts = null;
+    if (savedProducts) {
+      try {
+        loadedProducts = JSON.parse(savedProducts);
+      } catch (e) {
+        loadedProducts = null;
+      }
+    }
+    this.products = (Array.isArray(loadedProducts) && loadedProducts.length > 0) ? loadedProducts : DEFAULT_PRODUCTS;
 
     // 3. Transactions
     const savedTx = localStorage.getItem("toko_transactions");
@@ -213,27 +263,88 @@ class KasirApp {
     const savedExpenses = localStorage.getItem("toko_expenses");
     this.expenses = savedExpenses ? JSON.parse(savedExpenses) : DEFAULT_EXPENSES;
 
-    // 5. Users (Pegawai Kasir Dibuat oleh Admin)
+    // 5. Users (Akun Kasir & Admin Toko yang Dikelola Pemilik)
     const savedUsers = localStorage.getItem("toko_users");
     this.users = savedUsers ? JSON.parse(savedUsers) : DEFAULT_USERS;
 
-    // 6. Active Cashier Session & Login Status (Nomor Kasir & Shift Pegawai)
-    this.isCashierLoggedIn = localStorage.getItem("toko_cashier_logged_in") === "true";
-    const savedSession = localStorage.getItem("toko_current_session");
-    this.cashierSession = savedSession ? JSON.parse(savedSession) : {
-      userId: this.users[0] ? this.users[0].userId : "KASIR1",
-      employeeName: this.users[0] ? this.users[0].name : "Budi Santoso",
-      cashierNumber: (this.users[0] && this.users[0].assignedCashier !== "Bebas") ? this.users[0].assignedCashier : "Kasir 01",
-      shift: "Shift 1 (Pagi)",
-      shiftStart: new Date().toISOString()
-    };
+    // Sinkronkan akun admin ke dalam daftar users agar tampil di tabel Kelola Admin
+    this.admins.forEach(adm => {
+      const existing = this.users.find(u => u.userId === adm.adminId);
+      if (!existing) {
+        this.users.unshift({
+          userId: adm.adminId,
+          name: adm.name,
+          pin: adm.pin,
+          role: "admin",
+          assignedCashier: "Kasir Utama (Admin)",
+          status: adm.status || "active"
+        });
+      } else {
+        existing.role = "admin";
+        if (adm.pin) existing.pin = adm.pin;
+        if (adm.name) existing.name = adm.name;
+      }
+    });
+
+    // 6. Active Single-Session per Device (Hanya 1 Akun Aktif: Owner / Admin / Kasir)
+    const savedActiveSession = localStorage.getItem("toko_active_session");
+    if (savedActiveSession) {
+      try {
+        this.activeSession = JSON.parse(savedActiveSession);
+      } catch (e) {
+        this.activeSession = null;
+      }
+    }
+
+    if (this.activeSession && (this.activeSession.type === "owner" || this.activeSession.type === "admin")) {
+      this.currentRole = this.activeSession.type; // 'owner' or 'admin'
+      this.isCashierLoggedIn = false;
+      this.cashierSession = {
+        userId: this.activeSession.id || this.activeSession.userId || "STAFF",
+        employeeName: this.activeSession.name,
+        cashierNumber: this.activeSession.type === "owner" ? "Kasir Utama (Pemilik)" : "Kasir Utama (Admin)",
+        shift: this.activeSession.type === "owner" ? "Owner Shift" : "Admin Shift",
+        shiftStart: this.activeSession.loginTime || new Date().toISOString()
+      };
+    } else if (this.activeSession && this.activeSession.type === "cashier") {
+      this.currentRole = "cashier";
+      this.isCashierLoggedIn = true;
+      this.cashierSession = {
+        userId: this.activeSession.userId,
+        employeeName: this.activeSession.name,
+        cashierNumber: this.activeSession.cashierNumber || "Kasir 01",
+        shift: this.activeSession.shift || "Shift 1 (Pagi)",
+        shiftStart: this.activeSession.shiftStart || new Date().toISOString()
+      };
+    } else {
+      this.activeSession = null;
+      this.currentRole = "cashier";
+      this.isCashierLoggedIn = false;
+      this.cashierSession = null;
+    }
 
     // Save defaults back if newly initiated
     if (!savedProducts) this.saveProducts();
     if (!savedExpenses) this.saveExpenses();
     if (!savedUsers) this.saveUsers();
-    if (!savedSession) {
-      localStorage.setItem("toko_current_session", JSON.stringify(this.cashierSession));
+  }
+
+  saveOwners() {
+    localStorage.setItem("toko_owners", JSON.stringify(this.owners));
+  }
+
+  saveAdmins() {
+    localStorage.setItem("toko_admins", JSON.stringify(this.admins));
+  }
+
+  saveActiveSession(session) {
+    this.activeSession = session;
+    if (session) {
+      localStorage.setItem("toko_active_session", JSON.stringify(session));
+    } else {
+      localStorage.removeItem("toko_active_session");
+      localStorage.removeItem("toko_cashier_logged_in");
+      localStorage.removeItem("toko_current_session");
     }
   }
 
@@ -251,7 +362,12 @@ class KasirApp {
   }
 
   saveTransactions() {
-    localStorage.setItem("toko_transactions", JSON.stringify(this.transactions));
+    try {
+      localStorage.setItem("toko_transactions", JSON.stringify(this.transactions));
+    } catch (err) {
+      console.error("Local save error:", err);
+      this.showToast("Penyimpanan lokal penuh! Segera sinkronkan atau ekspor cadangan data.", "warning");
+    }
     this.updatePendingCount();
   }
 
@@ -333,24 +449,39 @@ class KasirApp {
   }
 
   updateNetworkUI(isOnline) {
-    const statusBadge = document.getElementById("networkStatusBadge");
-    const statusDot = document.getElementById("statusDot");
-    const statusText = document.getElementById("statusText");
+    const badges = document.querySelectorAll(".network-status-badge");
+    const dots = document.querySelectorAll(".status-dot");
+    const texts = document.querySelectorAll(".status-text");
     const offlineBanner = document.getElementById("offlineNoticeBanner");
 
-    if (!statusBadge || !statusDot || !statusText || !offlineBanner) return;
-
-    if (isOnline) {
-      statusBadge.className = "flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 transition-all duration-300";
-      statusDot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
-      statusText.textContent = "Online";
-      offlineBanner.classList.add("hidden");
-    } else {
-      statusBadge.className = "flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-300 transition-all duration-300";
-      statusDot.className = "w-2 h-2 rounded-full bg-rose-500";
-      statusText.textContent = "Offline";
-      offlineBanner.classList.remove("hidden");
+    if (offlineBanner) {
+      if (isOnline) {
+        offlineBanner.classList.add("hidden");
+      } else {
+        offlineBanner.classList.remove("hidden");
+      }
     }
+
+    badges.forEach(badge => {
+      const isMobile = badge.id.includes("Mobile") || badge.classList.contains("h-7");
+      if (isOnline) {
+        badge.className = `network-status-badge flex items-center space-x-1 sm:space-x-1.5 ${isMobile ? 'h-7 px-2 text-[10px]' : 'h-9 px-3 text-xs'} font-bold sm:font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0 transition-all duration-300`;
+      } else {
+        badge.className = `network-status-badge flex items-center space-x-1 sm:space-x-1.5 ${isMobile ? 'h-7 px-2 text-[10px]' : 'h-9 px-3 text-xs'} font-bold sm:font-semibold bg-rose-100 text-rose-800 border border-rose-300 shrink-0 transition-all duration-300`;
+      }
+    });
+
+    dots.forEach(dot => {
+      if (isOnline) {
+        dot.className = "w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse status-dot";
+      } else {
+        dot.className = "w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-rose-500 status-dot";
+      }
+    });
+
+    texts.forEach(txt => {
+      txt.textContent = isOnline ? "Online" : "Offline";
+    });
   }
 
   async checkNetworkStatus(silent = false) {
@@ -362,8 +493,8 @@ class KasirApp {
 
     // Transition: Offline -> Online
     if (previousStatus === false && isOnline === true) {
-      this.showToast("Koneksi Internet Terhubung! Memeriksa antrean sinkronisasi...", "info");
-      this.syncPendingData();
+      this.showToast("Koneksi Internet Terhubung! Mengupload data offline ke database...", "info");
+      this.autoRefreshAfterTransaction();
     }
     // Transition: Online -> Offline
     else if (previousStatus === true && isOnline === false && !silent) {
@@ -386,7 +517,7 @@ class KasirApp {
     this.renderTransactionHistory();
     this.renderExpensesTable();
     this.renderProductMasterTable();
-    if (this.currentRole === "admin") {
+    if (this.currentRole === "admin" || this.currentRole === "owner") {
       this.renderProfitLoss();
     }
 
@@ -422,14 +553,13 @@ class KasirApp {
     }
   }
 
-  // ==================== ROLE SWITCHING (PEGAWAI KASIR VS ADMIN) ====================
+  // ==================== ROLE & SINGLE-ACCOUNT AUTHENTICATION ====================
   openRoleChoiceModal() {
-    if (this.currentRole === "admin") {
-      // If currently admin, switch back to cashier mode
-      this.currentRole = "cashier";
-      this.updateRoleUI();
-      this.switchTab("pos");
-      this.showToast("Beralih ke Halaman Kasir (Pegawai)", "info");
+    if (this.activeSession && (this.activeSession.type === "owner" || this.activeSession.type === "admin")) {
+      const roleTitle = this.activeSession.type === "owner" ? "Pemilik" : "Admin";
+      if (confirm(`Akun ${roleTitle} "${this.activeSession.name}" sedang aktif.\n\nApakah Anda ingin keluar (Logout)?`)) {
+        this.logoutActiveAccount();
+      }
       return;
     }
     const modal = document.getElementById("loginChoiceModal");
@@ -443,27 +573,81 @@ class KasirApp {
 
   chooseLoginRole(role) {
     this.closeLoginChoiceModal();
-    if (role === "admin") {
-      this.openAdminPinModal();
+    if (role === "owner") {
+      this.openPinModalForRole("owner");
+    } else if (role === "admin") {
+      this.openPinModalForRole("admin");
     } else if (role === "cashier") {
       this.openEmployeeLoginModal();
     }
   }
 
-  openAdminPinModal() {
+  openPinModalForRole(role) {
+    this.currentLoginModalMode = role; // 'owner' or 'admin'
     const modal = document.getElementById("pinModal");
+    const select = document.getElementById("adminSelect");
     const pinField = document.getElementById("inputPinField");
     const err = document.getElementById("pinErrorMsg");
+    const title = document.getElementById("pinModalTitle");
+    const subtitle = document.getElementById("pinModalSubtitle");
+    const selectLabel = document.getElementById("pinModalSelectLabel");
+    const iconBox = document.getElementById("pinModalIconBox");
+    const icon = document.getElementById("pinModalIcon");
+    const submitBtn = document.getElementById("pinModalSubmitBtn");
+
     if (err) err.classList.add("hidden");
     if (pinField) pinField.value = "";
+
+    if (role === "owner") {
+      const ownerNames = (this.owners || []).map(o => o.name).join(" / ");
+      if (title) title.textContent = "Login Pemilik Toko";
+      if (subtitle) subtitle.textContent = `Pilih akun Pemilik (${ownerNames}) dan masukkan PIN.`;
+      if (selectLabel) selectLabel.textContent = "Pilih Akun Pemilik:";
+      if (iconBox) iconBox.className = "w-12 h-12 bg-purple-100 text-purple-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner";
+      if (icon) icon.className = "fa-solid fa-crown text-xl";
+      if (submitBtn) submitBtn.className = "flex-1 py-2.5 bg-purple-700 hover:bg-purple-800 text-white rounded-xl font-bold text-xs shadow-md transition";
+      
+      if (select) {
+        select.innerHTML = `<option value="" disabled selected>-- Pilih Nama --</option>` + this.owners.map(o => `
+          <option value="${o.ownerId}">${o.name} (Pemilik Toko)</option>
+        `).join("");
+      }
+    } else {
+      // Role admin
+      if (title) title.textContent = "Login Admin Toko";
+      if (subtitle) subtitle.textContent = "Pilih akun Admin dan masukkan PIN untuk mengelola kasir & barang.";
+      if (selectLabel) selectLabel.textContent = "Pilih Akun Admin:";
+      if (iconBox) iconBox.className = "w-12 h-12 bg-blue-100 text-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner";
+      if (icon) icon.className = "fa-solid fa-user-shield text-xl";
+      if (submitBtn) submitBtn.className = "flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-md transition";
+
+      // Ambil daftar admin dari data admin dan users yang berstatus admin
+      const allAdmins = [...this.admins];
+      this.users.filter(u => u.role === "admin" && u.status !== "inactive").forEach(u => {
+        if (!allAdmins.some(a => a.adminId === u.userId)) {
+          allAdmins.push({ adminId: u.userId, name: u.name, pin: u.pin, role: "admin" });
+        }
+      });
+
+      if (select) {
+        select.innerHTML = allAdmins.length > 0
+          ? `<option value="" disabled selected>-- Pilih Nama --</option>` + allAdmins.map(a => `<option value="${a.adminId}">${a.name} (Admin Toko)</option>`).join("")
+          : `<option value="">Belum ada akun Admin (Dibuat oleh Pemilik)</option>`;
+      }
+    }
+
     if (modal) modal.classList.remove("hidden");
     setTimeout(() => {
-      if (pinField) pinField.focus();
+      if (select && !select.value) select.focus();
+      else if (pinField) pinField.focus();
     }, 100);
   }
 
+  openAdminPinModal() {
+    this.openPinModalForRole("admin");
+  }
+
   openRoleModal() {
-    // Legacy support / alias
     this.openRoleChoiceModal();
   }
 
@@ -474,49 +658,182 @@ class KasirApp {
 
   verifyPin(e) {
     if (e) e.preventDefault();
+    const select = document.getElementById("adminSelect");
     const pinField = document.getElementById("inputPinField");
+    const err = document.getElementById("pinErrorMsg");
     const enteredPin = pinField ? pinField.value.trim() : "";
+    const selectedId = select ? select.value : "";
 
-    if (enteredPin === this.settings.adminPin) {
-      this.currentRole = "admin";
-      this.closeRoleModal();
-      this.updateRoleUI();
-      this.showToast("Login Admin Berhasil! Akses Laba Rugi terbuka.", "success");
+    if (!selectedId) {
+      this.showToast("Silakan pilih nama terlebih dahulu!", "warning");
+      if (select) select.focus();
+      return;
+    }
+
+    if (this.currentLoginModalMode === "owner") {
+      // Verifikasi Pemilik
+      const matchedOwner = this.owners.find(o => o.ownerId === selectedId && o.pin === enteredPin);
+
+      if (matchedOwner) {
+        const ownerSession = {
+          type: "owner",
+          id: matchedOwner.ownerId,
+          name: matchedOwner.name,
+          role: "owner",
+          loginTime: new Date().toISOString()
+        };
+
+        this.saveActiveSession(ownerSession);
+        this.currentRole = "owner";
+        this.isCashierLoggedIn = false;
+        this.cashierSession = {
+          userId: matchedOwner.ownerId,
+          employeeName: matchedOwner.name,
+          cashierNumber: "Kasir Utama (Pemilik)",
+          shift: "Owner Shift",
+          shiftStart: new Date().toISOString()
+        };
+
+        this.closeRoleModal();
+        this.updateRoleUI();
+        this.updateCashierShiftUI();
+        this.fillSettingsForm();
+        this.showToast(`Login Berhasil! Selamat datang Pemilik, ${matchedOwner.name}.`, "success");
+        return;
+      }
     } else {
-      const err = document.getElementById("pinErrorMsg");
-      if (err) err.classList.remove("hidden");
-      if (pinField) {
-        pinField.value = "";
-        pinField.focus();
+      // Verifikasi Admin Toko
+      const allAdmins = [...this.admins];
+      this.users.filter(u => u.role === "admin" && u.status !== "inactive").forEach(u => {
+        if (!allAdmins.some(a => a.adminId === u.userId)) {
+          allAdmins.push({ adminId: u.userId, name: u.name, pin: u.pin, role: "admin" });
+        }
+      });
+
+      let matchedAdmin = null;
+      if (selectedId) {
+        matchedAdmin = allAdmins.find(a => a.adminId === selectedId && a.pin === enteredPin);
+      } else {
+        matchedAdmin = allAdmins.find(a => a.pin === enteredPin);
+      }
+
+      if (matchedAdmin) {
+        const adminSession = {
+          type: "admin",
+          id: matchedAdmin.adminId,
+          name: matchedAdmin.name,
+          role: "admin",
+          loginTime: new Date().toISOString()
+        };
+
+        this.saveActiveSession(adminSession);
+        this.currentRole = "admin";
+        this.isCashierLoggedIn = false;
+        this.cashierSession = {
+          userId: matchedAdmin.adminId,
+          employeeName: matchedAdmin.name,
+          cashierNumber: "Kasir Utama (Admin)",
+          shift: "Admin Shift",
+          shiftStart: new Date().toISOString()
+        };
+
+        this.closeRoleModal();
+        this.updateRoleUI();
+        this.updateCashierShiftUI();
+        this.showToast(`Login Admin Berhasil! Selamat datang, ${matchedAdmin.name}.`, "success");
+        return;
       }
     }
+
+    if (err) err.classList.remove("hidden");
+    if (pinField) {
+      pinField.value = "";
+      pinField.focus();
+    }
+  }
+
+  logoutActiveAccount() {
+    const prevName = this.activeSession ? this.activeSession.name : "Pengguna";
+    this.saveActiveSession(null);
+    this.currentRole = "cashier";
+    this.isCashierLoggedIn = false;
+    this.cashierSession = null;
+    this.cart = [];
+
+    this.updateRoleUI();
+    this.updateCashierShiftUI();
+    this.renderCart();
+    this.switchTab("pos");
+    this.showToast(`Akun ${prevName} telah logout. Silakan login kembali.`, "info");
+
+    setTimeout(() => {
+      this.openRoleChoiceModal();
+    }, 400);
   }
 
   updateRoleUI() {
     const roleBadge = document.getElementById("currentRoleBadge");
-    const roleBtnText = document.getElementById("roleButtonText");
-    const roleIcon = document.getElementById("roleIcon");
-    const roleToggleBtn = document.getElementById("roleToggleBtn");
-    const adminTabs = document.querySelectorAll(".admin-only");
+    const roleBtnTexts = document.querySelectorAll(".role-btn-text");
+    const roleIcons = document.querySelectorAll(".role-icon");
+    const roleToggleBtns = document.querySelectorAll(".role-toggle-btn");
+    const managerTabs = document.querySelectorAll(".manager-tab");
+    const ownerTabs = document.querySelectorAll(".owner-tab");
+    const ownerPinBox = document.getElementById("settingOwnerPinContainer");
 
-    if (this.currentRole === "admin") {
+    if (this.activeSession && (this.activeSession.type === "owner" || this.activeSession.type === "admin")) {
+      const isOwner = this.activeSession.type === "owner";
+      const accountName = this.activeSession.name || (isOwner ? "Pemilik" : "Admin");
+      
       if (roleBadge) {
-        roleBadge.textContent = "Mode Admin";
-        roleBadge.className = "font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded text-[10px] sm:text-[11px] border border-purple-200";
+        roleBadge.textContent = isOwner ? `👑 Pemilik: ${accountName}` : `🛡️ Admin: ${accountName}`;
+        roleBadge.className = isOwner 
+          ? "font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded text-[10px] sm:text-[11px] border border-purple-300"
+          : "font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded text-[10px] sm:text-[11px] border border-blue-300";
       }
-      if (roleBtnText) roleBtnText.textContent = "Keluar Admin";
-      if (roleIcon) roleIcon.className = "fa-solid fa-right-from-bracket text-purple-200";
-      if (roleToggleBtn) roleToggleBtn.className = "flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-[11px] sm:text-xs font-semibold shadow-xs transition active:scale-95";
-      adminTabs.forEach(el => el.classList.remove("hidden"));
+
+      roleBtnTexts.forEach(btn => btn.textContent = `Keluar (${accountName})`);
+      roleIcons.forEach(icon => icon.className = "fa-solid fa-right-from-bracket text-purple-200 role-icon");
+      
+      roleToggleBtns.forEach(btn => {
+        const isMobile = btn.classList.contains("h-7");
+        const bgClass = isOwner ? "bg-purple-700 hover:bg-purple-800" : "bg-blue-600 hover:bg-blue-700";
+        btn.className = `role-toggle-btn flex items-center space-x-1 sm:space-x-1.5 ${isMobile ? 'h-7 px-2 text-[10px]' : 'h-9 px-3 text-xs'} ${bgClass} text-white rounded-lg font-bold sm:font-semibold shadow-xs transition active:scale-95 shrink-0`;
+      });
+
+      // Tampilkan tab Laba Rugi, Master Produk, dan Kelola Pegawai untuk Pemilik maupun Admin
+      managerTabs.forEach(el => el.classList.remove("hidden"));
+
+      // Tampilkan Pengaturan Database HANYA untuk Pemilik (HILANG saat login Admin)
+      if (isOwner) {
+        ownerTabs.forEach(el => el.classList.remove("hidden"));
+        if (ownerPinBox) ownerPinBox.classList.remove("hidden");
+      } else {
+        ownerTabs.forEach(el => el.classList.add("hidden"));
+        if (ownerPinBox) ownerPinBox.classList.add("hidden");
+      }
     } else {
+      const cashierName = (this.activeSession && this.activeSession.type === "cashier") ? this.activeSession.name : null;
       if (roleBadge) {
-        roleBadge.textContent = "Kasir (Pegawai)";
-        roleBadge.className = "font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[10px] sm:text-[11px] border border-emerald-200";
+        if (cashierName) {
+          roleBadge.textContent = `Kasir: ${cashierName}`;
+          roleBadge.className = "font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[10px] sm:text-[11px] border border-emerald-200";
+        } else {
+          roleBadge.textContent = "Belum Login";
+          roleBadge.className = "font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[10px] sm:text-[11px] border border-amber-200";
+        }
       }
-      if (roleBtnText) roleBtnText.textContent = "Login Admin";
-      if (roleIcon) roleIcon.className = "fa-solid fa-user-shield text-indigo-300";
-      if (roleToggleBtn) roleToggleBtn.className = "flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[11px] sm:text-xs font-semibold shadow-xs transition active:scale-95";
-      adminTabs.forEach(el => el.classList.add("hidden"));
+      roleBtnTexts.forEach(btn => {
+        const isMobile = btn.closest(".md\\:hidden");
+        btn.textContent = isMobile ? "Masuk" : "Login Akses";
+      });
+      roleIcons.forEach(icon => icon.className = "fa-solid fa-user-shield text-indigo-300 role-icon");
+      roleToggleBtns.forEach(btn => {
+        const isMobile = btn.classList.contains("h-7");
+        btn.className = `role-toggle-btn flex items-center space-x-1 sm:space-x-1.5 ${isMobile ? 'h-7 px-2 text-[10px]' : 'h-9 px-3 text-xs'} bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold sm:font-semibold shadow-xs transition active:scale-95 shrink-0`;
+      });
+      managerTabs.forEach(el => el.classList.add("hidden"));
+      ownerTabs.forEach(el => el.classList.add("hidden"));
+      if (ownerPinBox) ownerPinBox.classList.add("hidden");
     }
   }
 
@@ -525,7 +842,53 @@ class KasirApp {
     const cashierContainer = document.getElementById("cashierStatusContainer");
     const cartCashierBar = document.getElementById("cartCashierBarContainer");
 
-    if (this.isCashierLoggedIn) {
+    const isOwner = this.activeSession && this.activeSession.type === "owner";
+    const isAdmin = this.activeSession && this.activeSession.type === "admin";
+
+    if (isOwner || isAdmin) {
+      const roleTitle = isOwner ? "Pemilik" : "Admin";
+      const iconClass = isOwner ? "fa-crown text-purple-600" : "fa-user-shield text-blue-600";
+      const bgBadge = isOwner ? "bg-purple-50 border-purple-200 text-purple-950" : "bg-blue-50 border-blue-200 text-blue-950";
+      const tagBg = isOwner ? "bg-purple-700" : "bg-blue-600";
+      const tagText = isOwner ? "Akses Penuh" : "Admin Toko";
+      const name = this.activeSession.name || roleTitle;
+
+      // --- HEADER: ACTIVE OWNER / ADMIN BADGE ---
+      if (cashierContainer) {
+        cashierContainer.innerHTML = `
+          <div class="flex items-center justify-between w-full md:w-auto h-8 sm:h-9 ${bgBadge} border rounded-lg shadow-2xs overflow-hidden max-w-full">
+            <div class="flex items-center space-x-1.5 px-2.5 h-full text-[11px] sm:text-xs font-bold truncate">
+              <i class="fa-solid ${iconClass} shrink-0"></i>
+              <span class="truncate">${name}</span>
+              <span class="text-slate-300">•</span>
+              <span class="${tagBg} text-white text-[10px] px-1.5 py-0.5 rounded font-bold shrink-0">${tagText}</span>
+            </div>
+            <button onclick="app.logoutActiveAccount()" class="px-2.5 h-full flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 border-l border-slate-200 transition shrink-0" title="Keluar / Logout Akun ${roleTitle}">
+              <i class="fa-solid fa-power-off text-xs"></i>
+            </button>
+          </div>
+        `;
+      }
+
+      // --- CART: ACTIVE OWNER / ADMIN BAR ---
+      if (cartCashierBar) {
+        cartCashierBar.innerHTML = `
+          <div class="px-3.5 py-2 ${isOwner ? 'bg-purple-50/70 border-purple-100' : 'bg-blue-50/70 border-blue-100'} border-b flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-700">
+            <div class="flex items-center gap-1.5 min-w-0 flex-1">
+              <i class="fa-solid ${iconClass} text-xs shrink-0"></i>
+              <span class="truncate">Petugas: <b class="text-slate-900">${name} (${roleTitle})</b></span>
+              <span class="text-slate-300">•</span>
+              <span class="font-bold ${isOwner ? 'text-purple-700' : 'text-blue-700'} shrink-0">${isOwner ? '👑 Kasir Utama (Pemilik)' : '🛡️ Kasir Utama (Admin)'}</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 ml-auto">
+              <button onclick="app.openShiftReportModal()" class="text-[10px] ${isOwner ? 'text-purple-700 hover:text-purple-900 bg-purple-100/70 border-purple-200' : 'text-blue-700 hover:text-blue-900 bg-blue-100/70 border-blue-200'} px-2 py-0.5 rounded-md border font-bold transition" title="Lihat rekap transaksi">
+                <i class="fa-solid fa-calculator mr-1"></i>Rekap Kasir
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    } else if (this.isCashierLoggedIn && this.cashierSession) {
       // --- HEADER: ACTIVE CASHIER BADGE ---
       if (cashierContainer) {
         const shortShift = (this.cashierSession.shift || "Shift 1").split(" ")[0];
@@ -570,9 +933,9 @@ class KasirApp {
       // --- HEADER: LOGIN PROMPT (BELUM LOGIN) ---
       if (cashierContainer) {
         cashierContainer.innerHTML = `
-          <button onclick="app.openEmployeeLoginModal()" class="w-full md:w-auto flex items-center justify-center space-x-1.5 h-8 sm:h-9 px-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg text-[11px] sm:text-xs font-bold shadow-xs transition active:scale-95" title="Klik untuk Login Kasir Sebelum Jualan">
+          <button onclick="app.openRoleChoiceModal()" class="w-full md:w-auto flex items-center justify-center space-x-1.5 h-8 sm:h-9 px-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg text-[11px] sm:text-xs font-bold shadow-xs transition active:scale-95" title="Klik untuk Login Pemilik, Admin, atau Kasir">
             <i class="fa-solid fa-lock text-amber-100"></i>
-            <span>Login Kasir Dulu</span>
+            <span>Pilih Login Akun</span>
           </button>
         `;
       }
@@ -583,10 +946,10 @@ class KasirApp {
           <div class="px-3.5 py-2 bg-amber-50 border-b border-amber-200/80 flex items-center justify-between gap-2 text-[11px] text-amber-900">
             <div class="flex items-center gap-1.5 min-w-0">
               <i class="fa-solid fa-triangle-exclamation text-amber-600 shrink-0"></i>
-              <span class="truncate"><b class="font-bold">Belum Login:</b> Wajib login kasir sebelum jualan</span>
+              <span class="truncate"><b class="font-bold">Belum Login:</b> Silakan login akun untuk mulai transaksi</span>
             </div>
-            <button onclick="app.openEmployeeLoginModal()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-md text-[10px] shadow-2xs shrink-0 transition">
-              Login Kasir
+            <button onclick="app.openRoleChoiceModal()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-md text-[10px] shadow-2xs shrink-0 transition">
+              Login Akun
             </button>
           </div>
         `;
@@ -605,23 +968,23 @@ class KasirApp {
     if (err) err.classList.add("hidden");
     if (pinInput) pinInput.value = "";
 
-    // Populate active users
-    const activeUsers = this.users.filter(u => u.status !== "inactive");
+    // Populate active cashier users only with "-- Pilih Nama --" placeholder first
+    const activeUsers = this.users.filter(u => u.status !== "inactive" && u.role !== "admin");
     if (select) {
-      select.innerHTML = activeUsers.map(u => `
-        <option value="${u.userId}" ${u.userId === this.cashierSession.userId ? 'selected' : ''}>
+      select.innerHTML = `<option value="" disabled selected>-- Pilih Nama --</option>` + activeUsers.map(u => `
+        <option value="${u.userId}">
           ${u.name} (${u.userId}) - ${u.assignedCashier || 'Bebas'}
         </option>
       `).join("");
     }
 
-    if (shiftSelect) shiftSelect.value = this.cashierSession.shift || "Shift 1 (Pagi)";
-    if (cashierSelect) cashierSelect.value = this.cashierSession.cashierNumber || "Kasir 01";
+    if (shiftSelect) shiftSelect.value = (this.cashierSession && this.cashierSession.shift) ? this.cashierSession.shift : "Shift 1 (Pagi)";
+    if (cashierSelect) cashierSelect.value = (this.cashierSession && this.cashierSession.cashierNumber) ? this.cashierSession.cashierNumber : "Kasir 01";
 
     this.onEmpLoginSelectChange();
     if (modal) modal.classList.remove("hidden");
     setTimeout(() => {
-      if (pinInput) pinInput.focus();
+      if (select) select.focus();
     }, 100);
   }
 
@@ -633,11 +996,15 @@ class KasirApp {
   onEmpLoginSelectChange() {
     const select = document.getElementById("empLoginSelect");
     const cashierSelect = document.getElementById("empLoginCashierNo");
+    const pinInput = document.getElementById("empLoginPin");
     if (!select || !cashierSelect) return;
 
     const user = this.users.find(u => u.userId === select.value);
     if (user && user.assignedCashier && user.assignedCashier !== "Bebas") {
       cashierSelect.value = user.assignedCashier;
+    }
+    if (select.value && pinInput) {
+      pinInput.focus();
     }
   }
 
@@ -652,6 +1019,12 @@ class KasirApp {
     const userId = select ? select.value : "";
     const enteredPin = pinInput ? pinInput.value.trim() : "";
 
+    if (!userId) {
+      this.showToast("Silakan pilih nama pegawai terlebih dahulu!", "warning");
+      if (select) select.focus();
+      return;
+    }
+
     const user = this.users.find(u => u.userId === userId && u.status !== "inactive");
     if (!user || user.pin !== enteredPin) {
       if (err) err.classList.remove("hidden");
@@ -662,104 +1035,301 @@ class KasirApp {
       return;
     }
 
-    // Set new session
-    const isDifferentUser = this.cashierSession.userId !== user.userId || this.cashierSession.shift !== shiftSelect.value;
-    this.cashierSession = {
+    // Set new session (HANYA 1 AKUN AKTIF PER DEVICE)
+    const cashierSession = {
+      type: "cashier",
       userId: user.userId,
+      name: user.name,
       employeeName: user.name,
       cashierNumber: (cashierSelect ? cashierSelect.value : "") || user.assignedCashier || "Kasir 01",
       shift: shiftSelect ? shiftSelect.value : "Shift 1 (Pagi)",
-      shiftStart: isDifferentUser ? new Date().toISOString() : (this.cashierSession.shiftStart || new Date().toISOString())
+      shiftStart: new Date().toISOString()
     };
 
+    this.saveActiveSession(cashierSession);
+    this.currentRole = "cashier";
     this.isCashierLoggedIn = true;
-    localStorage.setItem("toko_cashier_logged_in", "true");
-    this.saveCashierSession();
+    this.cashierSession = cashierSession;
+
     this.closeEmployeeLoginModal();
+    this.updateRoleUI();
+    this.updateCashierShiftUI();
+    this.switchTab("pos");
     this.showToast(`Login Kasir Berhasil! Selamat bertugas, ${user.name} (${this.cashierSession.cashierNumber}).`, "success");
   }
 
   logoutCashier() {
     if (confirm(`Petugas ${this.cashierSession.employeeName} ingin keluar dari sesi kasir?\n\nKlik OK untuk logout dan melihat Rekap Tutup Shift.`)) {
-      this.isCashierLoggedIn = false;
-      localStorage.removeItem("toko_cashier_logged_in");
-      this.updateCashierShiftUI();
       this.openShiftReportModal();
+      this.logoutActiveAccount();
     }
   }
 
-  // ==================== KELOLA PEGAWAI (ADMIN ONLY) ====================
+  // ==================== KELOLA ADMIN & KASIR ====================
   renderEmployeeTable() {
-    const tbody = document.getElementById("employeeTableBody");
-    if (!tbody) return;
+    const adminTbody = document.getElementById("adminTableBody");
+    const cashierTbody = document.getElementById("cashierTableBody");
+    if (!adminTbody && !cashierTbody) return;
 
-    if (!this.users || this.users.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400">Belum ada data pegawai. Klik "Tambah Pegawai Baru" di atas.</td></tr>`;
+    const isOwner = this.currentRole === "owner";
+    const isAdmin = this.currentRole === "admin";
+
+    const adminList = (this.users || []).filter(u => u.role === "admin");
+    const cashierList = (this.users || []).filter(u => u.role !== "admin");
+
+    // UI Personalization based on role:
+    const headerRoleBadge = document.getElementById("empHeaderRoleBadge");
+    const headerTitle = document.getElementById("empHeaderTitle");
+    const headerSubtitle = document.getElementById("empHeaderSubtitle");
+    const btnAddAdmin = document.getElementById("empBtnAddAdmin");
+    const filterContainer = document.getElementById("empFilterContainer");
+    const adminSection = document.getElementById("adminSectionContainer");
+    const cashierSection = document.getElementById("cashierSectionContainer");
+
+    if (isAdmin) {
+      if (headerRoleBadge) {
+        headerRoleBadge.innerHTML = `<i class="fa-solid fa-user-shield mr-1"></i>Akses Admin Toko`;
+        headerRoleBadge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200";
+      }
+      if (headerTitle) headerTitle.textContent = "Kelola Akun Pegawai (Kasir)";
+      if (headerSubtitle) headerSubtitle.textContent = "Kelola akun kasir, User ID, PIN, serta penugasan loket kasir default";
+      if (btnAddAdmin) btnAddAdmin.classList.add("hidden");
+      if (filterContainer) filterContainer.classList.add("hidden");
+      if (adminSection) adminSection.classList.add("hidden");
+      if (cashierSection) cashierSection.classList.remove("hidden");
+    } else {
+      if (headerRoleBadge) {
+        headerRoleBadge.innerHTML = `<i class="fa-solid fa-crown mr-1"></i>Akses Khusus Pemilik Toko`;
+        headerRoleBadge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200";
+      }
+      if (headerTitle) headerTitle.textContent = "Kelola Akun Admin Toko & Kasir";
+      if (headerSubtitle) headerSubtitle.textContent = "Buat User ID dan PIN khusus untuk mengelola Admin Toko serta Staf Kasir (Pegawai)";
+      if (btnAddAdmin) btnAddAdmin.classList.remove("hidden");
+      if (filterContainer) filterContainer.classList.remove("hidden");
+      this.setEmployeeFilter(this.currentEmpFilter || "all");
+    }
+
+    // Update badge counts
+    const countAll = document.getElementById("badgeCountAll");
+    const countAdmin = document.getElementById("badgeCountAdmin");
+    const countCashier = document.getElementById("badgeCountCashier");
+    if (countAll) countAll.textContent = (this.users || []).length;
+    if (countAdmin) countAdmin.textContent = adminList.length;
+    if (countCashier) countCashier.textContent = cashierList.length;
+
+    // 1. Render Admin Table (Hanya bila Pemilik)
+    if (adminTbody) {
+      if (adminList.length === 0) {
+        adminTbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="p-6 text-center text-slate-400">
+              <i class="fa-solid fa-user-shield text-2xl mb-1 text-slate-300"></i>
+              <p class="font-medium text-xs">Belum ada akun Admin Toko.</p>
+              <p class="text-[10px] text-slate-400">Klik tombol "+ Tambah Admin Toko" di atas untuk membuat akun admin baru.</p>
+            </td>
+          </tr>
+        `;
+      } else {
+        adminTbody.innerHTML = adminList.map(u => {
+          const statusBadge = u.status === "active"
+            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>`
+            : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">Nonaktif</span>`;
+
+          return `
+            <tr class="hover:bg-blue-50/40 transition">
+              <td class="py-3 px-4 font-mono font-bold text-blue-700 text-xs">${u.userId}</td>
+              <td class="py-3 px-4 font-bold text-slate-800">${u.name}</td>
+              <td class="py-3 px-4">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">
+                  <i class="fa-solid fa-user-shield mr-1"></i>Admin Toko
+                </span>
+              </td>
+              <td class="py-3 px-4 font-mono text-slate-600 bg-slate-50/50">
+                <span class="tracking-widest font-black text-xs text-slate-700">••••</span>
+                <span class="text-[10px] text-slate-400 ml-1">(${u.pin})</span>
+              </td>
+              <td class="py-3 px-4">${statusBadge}</td>
+              <td class="py-3 px-4 text-center">
+                <div class="flex items-center justify-center gap-1.5">
+                  <button onclick="app.openEmployeeModal('${u.userId}')" class="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-semibold text-[11px] transition">
+                    <i class="fa-solid fa-pen-to-square mr-1"></i>Edit
+                  </button>
+                  <button onclick="app.deleteEmployee('${u.userId}')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold text-[11px] transition">
+                    <i class="fa-solid fa-trash mr-1"></i>Hapus
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      }
+    }
+
+    // 2. Render Cashier Table
+    if (cashierTbody) {
+      if (cashierList.length === 0) {
+        cashierTbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="p-6 text-center text-slate-400">
+              <i class="fa-solid fa-cash-register text-2xl mb-1 text-slate-300"></i>
+              <p class="font-medium text-xs">Belum ada akun Kasir (Pegawai).</p>
+              <p class="text-[10px] text-slate-400">Klik tombol "+ Tambah Kasir Baru" di atas untuk menambah staf kasir.</p>
+            </td>
+          </tr>
+        `;
+      } else {
+        cashierTbody.innerHTML = cashierList.map(u => {
+          const statusBadge = u.status === "active"
+            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>`
+            : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">Nonaktif</span>`;
+
+          return `
+            <tr class="hover:bg-emerald-50/40 transition">
+              <td class="py-3 px-4 font-mono font-bold text-emerald-700 text-xs">${u.userId}</td>
+              <td class="py-3 px-4 font-bold text-slate-800">${u.name}</td>
+              <td class="py-3 px-4">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                  <i class="fa-solid fa-cash-register mr-1"></i>Kasir (Pegawai)
+                </span>
+              </td>
+              <td class="py-3 px-4 font-mono text-slate-600 bg-slate-50/50">
+                <span class="tracking-widest font-black text-xs text-slate-700">••••</span>
+                <span class="text-[10px] text-slate-400 ml-1">(${u.pin})</span>
+              </td>
+              <td class="py-3 px-4 font-semibold text-slate-700">${u.assignedCashier || 'Bebas'}</td>
+              <td class="py-3 px-4">${statusBadge}</td>
+              <td class="py-3 px-4 text-center">
+                <div class="flex items-center justify-center gap-1.5">
+                  <button onclick="app.openEmployeeModal('${u.userId}')" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-semibold text-[11px] transition">
+                    <i class="fa-solid fa-pen-to-square mr-1"></i>Edit
+                  </button>
+                  <button onclick="app.deleteEmployee('${u.userId}')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold text-[11px] transition">
+                    <i class="fa-solid fa-trash mr-1"></i>Hapus
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      }
+    }
+  }
+
+  setEmployeeFilter(filter) {
+    this.currentEmpFilter = filter;
+    const adminSection = document.getElementById("adminSectionContainer");
+    const cashierSection = document.getElementById("cashierSectionContainer");
+    const isAdmin = this.currentRole === "admin";
+
+    if (isAdmin) {
+      if (adminSection) adminSection.classList.add("hidden");
+      if (cashierSection) cashierSection.classList.remove("hidden");
       return;
     }
 
-    tbody.innerHTML = this.users.map(u => {
-      const statusBadge = u.status === "active"
-        ? `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>`
-        : `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500">Nonaktif</span>`;
+    if (adminSection) {
+      if (filter === "all" || filter === "admin") {
+        adminSection.classList.remove("hidden");
+      } else {
+        adminSection.classList.add("hidden");
+      }
+    }
 
-      return `
-        <tr class="hover:bg-slate-50 transition">
-          <td class="py-3 px-4 font-mono font-bold text-indigo-700 text-xs">${u.userId}</td>
-          <td class="py-3 px-4 font-bold text-slate-800">${u.name}</td>
-          <td class="py-3 px-4 font-mono text-slate-600 bg-slate-50/50">
-            <span class="tracking-widest font-black text-xs text-slate-700">••••</span>
-            <span class="text-[10px] text-slate-400 ml-1">(${u.pin})</span>
-          </td>
-          <td class="py-3 px-4 font-semibold text-slate-700">${u.assignedCashier || 'Bebas'}</td>
-          <td class="py-3 px-4">${statusBadge}</td>
-          <td class="py-3 px-4 text-center">
-            <div class="flex items-center justify-center gap-1.5">
-              <button onclick="app.openEmployeeModal('${u.userId}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-semibold text-[11px] transition">
-                <i class="fa-solid fa-pen-to-square mr-1"></i>Edit
-              </button>
-              <button onclick="app.deleteEmployee('${u.userId}')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold text-[11px] transition">
-                <i class="fa-solid fa-trash mr-1"></i>Hapus
-              </button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join("");
+    if (cashierSection) {
+      if (filter === "all" || filter === "cashier") {
+        cashierSection.classList.remove("hidden");
+      } else {
+        cashierSection.classList.add("hidden");
+      }
+    }
+
+    ["all", "admin", "cashier"].forEach(f => {
+      const chip = document.getElementById(`empFilter-${f}`);
+      if (chip) {
+        if (f === filter) {
+          chip.classList.add("active");
+        } else {
+          chip.classList.remove("active");
+        }
+      }
+    });
   }
 
-  openEmployeeModal(userId = null) {
+  onEmpRoleSelectChange() {
+    const roleSelect = document.getElementById("empRoleSelect");
+    const cashierBox = document.getElementById("empDefaultCashierContainer");
+    if (!roleSelect || !cashierBox) return;
+
+    if (roleSelect.value === "admin") {
+      cashierBox.classList.add("hidden");
+    } else {
+      cashierBox.classList.remove("hidden");
+    }
+  }
+
+  openEmployeeModal(userId = null, presetRole = null) {
+    const isAdmRole = this.currentRole === "admin";
     const modal = document.getElementById("employeeModal");
     const title = document.getElementById("employeeModalTitle");
     const origId = document.getElementById("empEditOriginalId");
     const idInput = document.getElementById("empUserIdInput");
     const nameInput = document.getElementById("empFullNameInput");
     const pinInput = document.getElementById("empPinInput");
+    const roleSelect = document.getElementById("empRoleSelect");
     const cashierSelect = document.getElementById("empDefaultCashier");
     const statusSelect = document.getElementById("empStatusSelect");
+
+    // Jika login sebagai Admin Toko: Admin HANYA boleh kelola kasir!
+    if (isAdmRole) {
+      if (userId) {
+        const u = this.users.find(x => x.userId === userId);
+        if (u && u.role === "admin") {
+          this.showToast("Admin tidak memiliki hak akses untuk mengubah akun Admin!", "warning");
+          return;
+        }
+      }
+      presetRole = "cashier";
+    }
+
+    // Atur opsi peran di dropdown
+    if (roleSelect) {
+      const adminOpt = roleSelect.querySelector('option[value="admin"]');
+      if (adminOpt) {
+        adminOpt.disabled = isAdmRole;
+        adminOpt.hidden = isAdmRole;
+      }
+      roleSelect.disabled = isAdmRole;
+    }
 
     if (userId) {
       const u = this.users.find(x => x.userId === userId);
       if (!u) return;
-      title.textContent = `Edit Pegawai: ${u.name}`;
+      const isAdm = u.role === "admin";
+      title.textContent = `Edit Akun ${isAdm ? 'Admin Toko' : 'Kasir'}: ${u.name}`;
       origId.value = u.userId;
       idInput.value = u.userId;
       idInput.readOnly = true; // User ID tidak diubah saat edit
       nameInput.value = u.name;
       pinInput.value = u.pin;
-      cashierSelect.value = u.assignedCashier || "Kasir 01";
-      statusSelect.value = u.status || "active";
+      if (roleSelect) roleSelect.value = isAdmRole ? "cashier" : (u.role || "cashier");
+      if (cashierSelect) cashierSelect.value = u.assignedCashier || "Kasir 01";
+      if (statusSelect) statusSelect.value = u.status || "active";
     } else {
-      title.textContent = "Tambah Pegawai Baru";
+      const role = isAdmRole ? "cashier" : (presetRole || "cashier");
+      title.textContent = role === "admin" ? "Tambah Akun Admin Toko Baru" : "Tambah Akun Kasir (Pegawai) Baru";
       origId.value = "";
-      idInput.value = "";
+      idInput.value = role === "admin"
+        ? `ADMIN-${this.users.filter(u => u.role === "admin").length + 1}`
+        : `KASIR${this.users.filter(u => u.role !== "admin").length + 1}`;
       idInput.readOnly = false;
       nameInput.value = "";
       pinInput.value = "";
-      cashierSelect.value = "Kasir 01";
-      statusSelect.value = "active";
+      if (roleSelect) roleSelect.value = role;
+      if (cashierSelect) cashierSelect.value = "Kasir 01";
+      if (statusSelect) statusSelect.value = "active";
     }
 
+    this.onEmpRoleSelectChange();
     modal.classList.remove("hidden");
     setTimeout(() => (origId.value ? nameInput.focus() : idInput.focus()), 100);
   }
@@ -771,11 +1341,14 @@ class KasirApp {
 
   saveEmployee(e) {
     if (e) e.preventDefault();
+    const isAdmRole = this.currentRole === "admin";
     const origId = document.getElementById("empEditOriginalId").value;
     const userId = document.getElementById("empUserIdInput").value.trim().toUpperCase().replace(/\s+/g, '');
     const name = document.getElementById("empFullNameInput").value.trim();
     const pin = document.getElementById("empPinInput").value.trim();
-    const assignedCashier = document.getElementById("empDefaultCashier").value;
+    const roleSelect = document.getElementById("empRoleSelect");
+    let role = isAdmRole ? "cashier" : (roleSelect ? roleSelect.value : "cashier");
+    const assignedCashier = role === "admin" ? "Kasir Utama (Admin)" : document.getElementById("empDefaultCashier").value;
     const status = document.getElementById("empStatusSelect").value;
 
     if (!userId || !name || !pin) {
@@ -783,31 +1356,52 @@ class KasirApp {
       return;
     }
 
+    if (isAdmRole && origId) {
+      const existing = this.users.find(u => u.userId === origId);
+      if (existing && existing.role === "admin") {
+        this.showToast("Admin tidak diizinkan mengubah akun Admin!", "warning");
+        return;
+      }
+    }
+
     if (origId) {
       // Edit existing
       const idx = this.users.findIndex(u => u.userId === origId);
       if (idx > -1) {
-        this.users[idx] = { ...this.users[idx], name, pin, assignedCashier, status };
-        // If current session is this user, update name
-        if (this.cashierSession.userId === origId) {
+        this.users[idx] = { ...this.users[idx], name, pin, role, assignedCashier, status };
+        if (this.cashierSession && this.cashierSession.userId === origId) {
           this.cashierSession.employeeName = name;
-          this.saveCashierSession();
         }
+      }
+      // Sinkronkan ke this.admins
+      const admIdx = this.admins.findIndex(a => a.adminId === origId);
+      if (role === "admin") {
+        if (admIdx > -1) {
+          this.admins[admIdx] = { ...this.admins[admIdx], name, pin, status };
+        } else {
+          this.admins.push({ adminId: origId, name, pin, role: "admin", status });
+        }
+      } else if (admIdx > -1) {
+        this.admins.splice(admIdx, 1);
       }
     } else {
       // Check duplicate userId
-      if (this.users.some(u => u.userId === userId)) {
+      if (this.users.some(u => u.userId === userId) || this.owners.some(o => o.ownerId === userId)) {
         this.showToast(`User ID "${userId}" sudah digunakan! Gunakan ID lain.`, "warning");
         document.getElementById("empUserIdInput").focus();
         return;
       }
-      this.users.push({ userId, name, pin, assignedCashier, status });
+      this.users.push({ userId, name, pin, role, assignedCashier, status });
+      if (role === "admin") {
+        this.admins.push({ adminId: userId, name, pin, role: "admin", status });
+      }
     }
 
     this.saveUsers();
+    this.saveAdmins();
     this.closeEmployeeModal();
     this.renderEmployeeTable();
-    this.showToast(`Data pegawai ${name} berhasil disimpan!`, "success");
+    this.showToast(`Akun ${role === "admin" ? "Admin Toko" : "Kasir"} (${name}) berhasil disimpan!`, "success");
 
     // Sync to cloud if online
     if (this.isOnlineState && this.settings.gasUrl) {
@@ -816,26 +1410,32 @@ class KasirApp {
   }
 
   deleteEmployee(userId) {
+    const isAdmRole = this.currentRole === "admin";
     const u = this.users.find(x => x.userId === userId);
     if (!u) return;
 
-    if (this.users.length <= 1) {
-      this.showToast("Minimal harus tersisa 1 akun pegawai!", "warning");
+    if (isAdmRole && u.role === "admin") {
+      this.showToast("Admin tidak diizinkan menghapus akun Admin!", "warning");
       return;
     }
 
-    if (!confirm(`Hapus akun pegawai "${u.name}" (${u.userId})?`)) return;
+    const roleLabel = u.role === "admin" ? "Admin Toko" : "Kasir";
+    if (!confirm(`Hapus akun ${roleLabel} "${u.name}" (${u.userId})?`)) return;
 
     this.users = this.users.filter(x => x.userId !== userId);
+    this.admins = this.admins.filter(a => a.adminId !== userId);
     this.saveUsers();
+    this.saveAdmins();
     this.renderEmployeeTable();
-    this.showToast(`Pegawai ${u.name} telah dihapus`, "info");
+    this.showToast(`Akun ${roleLabel} ${u.name} telah dihapus`, "info");
 
-    // If active user was deleted, switch to another
-    if (this.cashierSession.userId === userId) {
-      this.cashierSession.userId = this.users[0].userId;
-      this.cashierSession.employeeName = this.users[0].name;
-      this.saveCashierSession();
+    if (this.cashierSession && this.cashierSession.userId === userId) {
+      const remainingCashiers = this.users.filter(x => x.role !== "admin");
+      if (remainingCashiers.length > 0) {
+        this.cashierSession.userId = remainingCashiers[0].userId;
+        this.cashierSession.employeeName = remainingCashiers[0].name;
+        this.saveCashierSession();
+      }
     }
 
     if (this.isOnlineState && this.settings.gasUrl) {
@@ -849,11 +1449,18 @@ class KasirApp {
     const modal = document.getElementById("shiftReportModal");
     const shiftData = this.calcShiftData();
 
-    document.getElementById("repCashierNumber").textContent = this.cashierSession.cashierNumber;
-    document.getElementById("repEmployeeName").textContent = this.cashierSession.employeeName;
-    document.getElementById("repShiftName").textContent = this.cashierSession.shift;
+    const session = this.cashierSession || {
+      cashierNumber: "Kasir 01",
+      employeeName: "Petugas Kasir",
+      shift: "Shift 1",
+      shiftStart: new Date().toISOString()
+    };
 
-    const startDt = new Date(this.cashierSession.shiftStart);
+    document.getElementById("repCashierNumber").textContent = session.cashierNumber;
+    document.getElementById("repEmployeeName").textContent = session.employeeName;
+    document.getElementById("repShiftName").textContent = session.shift;
+
+    const startDt = new Date(session.shiftStart);
     document.getElementById("repStartTime").textContent = isNaN(startDt) ? "-" : startDt.toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
     document.getElementById("repEndTime").textContent = new Date().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
 
@@ -878,8 +1485,14 @@ class KasirApp {
   }
 
   calcShiftData() {
-    const startTimeMs = new Date(this.cashierSession.shiftStart).getTime() || 0;
-    const currentCashier = this.cashierSession.cashierNumber;
+    const session = this.cashierSession || {
+      cashierNumber: "Kasir 01",
+      employeeName: "Petugas Kasir",
+      shift: "Shift 1",
+      shiftStart: new Date().toISOString()
+    };
+    const startTimeMs = new Date(session.shiftStart).getTime() || 0;
+    const currentCashier = session.cashierNumber;
 
     // Filter transactions from this shift and cashier
     const shiftTransactions = this.transactions.filter(t => {
@@ -917,7 +1530,14 @@ class KasirApp {
     const shiftData = this.calcShiftData();
     const container = document.getElementById("receiptPrintArea");
 
-    const startDt = new Date(this.cashierSession.shiftStart);
+    const session = this.cashierSession || {
+      cashierNumber: "Kasir 01",
+      employeeName: "Petugas Kasir",
+      shift: "Shift 1",
+      shiftStart: new Date().toISOString()
+    };
+
+    const startDt = new Date(session.shiftStart);
     const startTimeFormatted = isNaN(startDt) ? "-" : startDt.toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
     const endTimeFormatted = new Date().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
 
@@ -930,15 +1550,15 @@ class KasirApp {
       <div class="py-2 border-b border-dashed border-slate-300 text-[10px] space-y-0.5">
         <div class="flex justify-between">
           <span>No. Kasir:</span>
-          <span class="font-bold">${this.cashierSession.cashierNumber}</span>
+          <span class="font-bold">${session.cashierNumber}</span>
         </div>
         <div class="flex justify-between">
           <span>Petugas:</span>
-          <span class="font-bold">${this.cashierSession.employeeName}</span>
+          <span class="font-bold">${session.employeeName}</span>
         </div>
         <div class="flex justify-between">
           <span>Shift:</span>
-          <span>${this.cashierSession.shift}</span>
+          <span>${session.shift}</span>
         </div>
         <div class="flex justify-between">
           <span>Mulai Shift:</span>
@@ -993,7 +1613,7 @@ class KasirApp {
           <div>
             <p>Kasir Bertugas</p>
             <div class="h-8"></div>
-            <p class="font-bold">(${this.cashierSession.employeeName})</p>
+            <p class="font-bold">(${session.employeeName})</p>
           </div>
           <div>
             <p>Supervisor / Toko</p>
@@ -1010,22 +1630,31 @@ class KasirApp {
 
   startNewShift() {
     if (!confirm("Tutup shift saat ini dan mulai sesi shift baru? Jam awal shift akan direset ke sekarang.")) return;
-    this.cashierSession.shiftStart = new Date().toISOString();
-    this.isCashierLoggedIn = false;
-    localStorage.removeItem("toko_cashier_logged_in");
-    this.saveCashierSession();
-    this.updateCashierShiftUI();
+    if (this.cashierSession) {
+      this.cashierSession.shiftStart = new Date().toISOString();
+      this.saveCashierSession();
+    }
+    this.logoutActiveAccount();
     this.closeShiftReportModal();
     this.showToast("Shift ditutup! Silakan login untuk petugas kasir berikutnya.", "success");
-    this.openEmployeeLoginModal();
   }
 
   // ==================== NAVIGATION TABS ====================
   switchTab(tabName) {
-    // Security check: if cashier tries to access admin tabs, reject
-    if (["profitloss", "products", "employees", "settings"].includes(tabName) && this.currentRole !== "admin") {
-      this.showToast("Menu ini hanya dapat diakses oleh Admin!", "warning");
-      this.openAdminPinModal();
+    const isOwner = this.currentRole === "owner";
+    const isAdmin = this.currentRole === "admin";
+
+    // Menu Pengaturan Database HANYA untuk Pemilik Toko
+    if (tabName === "settings" && !isOwner) {
+      this.showToast("Menu ini hanya dapat diakses oleh Pemilik Toko!", "warning");
+      this.switchTab("pos");
+      return;
+    }
+
+    // Menu Laba Rugi, Master Produk & Kelola Pegawai untuk Pemilik atau Admin Toko
+    if (["profitloss", "products", "employees"].includes(tabName) && !isOwner && !isAdmin) {
+      this.showToast("Menu ini hanya dapat diakses oleh Pemilik atau Admin Toko!", "warning");
+      this.openRoleChoiceModal();
       return;
     }
 
@@ -1051,6 +1680,8 @@ class KasirApp {
       this.renderEmployeeTable();
     } else if (tabName === "expenses") {
       this.renderExpensesTable();
+    } else if (tabName === "settings") {
+      this.fillSettingsForm();
     }
   }
 
@@ -1187,9 +1818,10 @@ class KasirApp {
   }
 
   addToCart(productId, unitName) {
-    if (!this.isCashierLoggedIn && this.currentRole !== 'admin') {
-      this.showToast("Silakan Login Kasir terlebih dahulu sebelum melayani penjualan!", "warning");
-      this.openEmployeeLoginModal();
+    const canSell = this.isCashierLoggedIn || this.currentRole === "admin" || this.currentRole === "owner";
+    if (!canSell) {
+      this.showToast("Silakan Login terlebih dahulu sebelum melayani penjualan!", "warning");
+      this.openRoleChoiceModal();
       return;
     }
 
@@ -1373,9 +2005,10 @@ class KasirApp {
 
   // ==================== CHECKOUT PROCESS ====================
   processCheckout() {
-    if (!this.isCashierLoggedIn && this.currentRole !== 'admin') {
-      this.showToast("Silakan Login Kasir terlebih dahulu sebelum menyelesaikan transaksi!", "warning");
-      this.openEmployeeLoginModal();
+    const canSell = this.isCashierLoggedIn || this.currentRole === "admin" || this.currentRole === "owner";
+    if (!canSell) {
+      this.showToast("Silakan Login terlebih dahulu sebelum menyelesaikan transaksi!", "warning");
+      this.openRoleChoiceModal();
       return;
     }
 
@@ -1416,9 +2049,19 @@ class KasirApp {
     this.saveProducts();
 
     // 3. Create Transaction Record
-    const cashierLabel = this.currentRole === "admin"
-      ? `Admin (${this.cashierSession.cashierNumber})`
-      : `${this.cashierSession.cashierNumber} - ${this.cashierSession.employeeName} (${this.cashierSession.shift})`;
+    const activeStaff = this.cashierSession || (this.activeSession ? {
+      cashierNumber: this.activeSession.type === "owner" ? "Kasir Utama (Pemilik)" : "Kasir Utama (Admin)",
+      employeeName: this.activeSession.name,
+      shift: this.activeSession.type === "owner" ? "Owner Shift" : "Admin Shift"
+    } : {
+      cashierNumber: "Kasir 01",
+      employeeName: "Petugas Kasir",
+      shift: "Shift 1"
+    });
+
+    const cashierLabel = (this.activeSession && (this.activeSession.type === "owner" || this.activeSession.type === "admin"))
+      ? `${this.activeSession.type === "owner" ? "👑 Pemilik" : "🛡️ Admin Toko"} (${this.activeSession.name})`
+      : `${activeStaff.cashierNumber} - ${activeStaff.employeeName} (${activeStaff.shift})`;
 
     const transaction = {
       invoiceNo: invoiceNo,
@@ -1426,9 +2069,9 @@ class KasirApp {
       time: timeStr,
       timestamp: now.getTime(),
       cashier: cashierLabel,
-      cashierNumber: this.cashierSession.cashierNumber,
-      employeeName: this.cashierSession.employeeName,
-      shift: this.cashierSession.shift,
+      cashierNumber: activeStaff.cashierNumber || "Kasir 01",
+      employeeName: activeStaff.employeeName || "Kasir",
+      shift: activeStaff.shift || "Non-Shift",
       customerName: customerName,
       paymentType: paymentType,
       items: this.cart.map(i => ({
@@ -1467,10 +2110,8 @@ class KasirApp {
     this.renderPosProducts();
     this.showToast(`Transaksi ${invoiceNo} berhasil disimpan!`, "success");
 
-    // Background push to Google Sheets if online
-    if (this.isOnlineState && this.settings.gasUrl) {
-      this.syncPendingData();
-    }
+    // Refresh otomatis: saat online upload ke Google Sheets lalu segarkan data; saat offline tetap tersimpan lokal
+    this.autoRefreshAfterTransaction();
   }
 
   // ==================== RECEIPT RENDERING ====================
@@ -1727,7 +2368,7 @@ class KasirApp {
       this.closeCancelModal();
       this.renderTransactionHistory();
       this.renderPosProducts();
-      if (this.currentRole === "admin") {
+      if (this.currentRole === "admin" || this.currentRole === "owner") {
         this.renderProfitLoss();
       }
       this.showToast(`Transaksi ${invoiceNo} berhasil dibatalkan dan stok dikembalikan!`, "info");
@@ -2327,13 +2968,237 @@ class KasirApp {
     const nameField = document.getElementById("settingStoreName");
     const phoneField = document.getElementById("settingStorePhone");
     const addrField = document.getElementById("settingStoreAddress");
-    const pinField = document.getElementById("settingAdminPin");
+    const currentOwnerBadge = document.getElementById("settingCurrentActiveOwner");
+    const ownerChoiceSub = document.getElementById("ownerChoiceSubtitle");
 
     if (urlField) urlField.value = this.settings.gasUrl || "";
     if (nameField) nameField.value = this.settings.storeName || "";
     if (phoneField) phoneField.value = this.settings.storePhone || "";
     if (addrField) addrField.value = this.settings.storeAddress || "";
-    if (pinField) pinField.value = this.settings.adminPin || "1234";
+
+    // Update subtitle di modal pilihan login dengan semua nama pemilik
+    if (ownerChoiceSub && this.owners && this.owners.length > 0) {
+      const namesList = this.owners.map(o => o.name).join(", ");
+      ownerChoiceSub.textContent = `${namesList} (Kelola penuh & PIN Pemilik)`;
+    }
+
+    // Update indikator pemilik yang sedang aktif
+    const activeOwnerId = (this.activeSession && this.activeSession.type === "owner") ? this.activeSession.id : "";
+    const activeOwnerName = (this.activeSession && this.activeSession.type === "owner") ? this.activeSession.name : "-";
+    if (currentOwnerBadge) {
+      currentOwnerBadge.textContent = activeOwnerId ? `👑 ${activeOwnerName}` : "Belum Login Pemilik";
+    }
+
+    this.renderOwnerAccountsInSettings();
+  }
+
+  renderOwnerAccountsInSettings() {
+    const container = document.getElementById("ownerAccountsListContainer");
+    if (!container) return;
+
+    const activeOwnerId = (this.activeSession && this.activeSession.type === "owner") ? this.activeSession.id : "";
+    const totalOwners = (this.owners || []).length;
+
+    container.innerHTML = (this.owners || []).map((o, idx) => {
+      const num = idx + 1;
+      const isActive = o.ownerId === activeOwnerId;
+      const statusBadge = isActive
+        ? `<span class="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-2 py-0.5 rounded-full">● Sedang Login</span>`
+        : `<span class="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">Pemilik ${num}</span>`;
+
+      const deleteBtn = totalOwners > 1
+        ? `<button type="button" onclick="app.deleteOwnerAccount('${o.ownerId}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[10px] font-bold transition flex items-center gap-1" title="Hapus Akun Pemilik ${num}">
+             <i class="fa-solid fa-trash"></i>
+             <span>Hapus</span>
+           </button>`
+        : "";
+
+      const nameInputId = `settingOwnerName_${o.ownerId}`;
+      const pinInputId = `settingOwnerPin_${o.ownerId}`;
+      const eyeIconId = `eyeIcon_${o.ownerId}`;
+
+      return `
+        <div class="p-3.5 sm:p-4 rounded-xl border ${isActive ? 'border-purple-300 bg-purple-50/40' : 'border-slate-200 bg-slate-50/60'} space-y-3 transition">
+          <div class="flex items-center justify-between border-b border-slate-200/80 pb-2 gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-xs shrink-0">${num}</span>
+              <div>
+                <h3 class="font-bold text-slate-900 text-xs">Akun Pemilik ${num}</h3>
+                <span class="text-[10px] font-mono text-slate-400">ID: ${o.ownerId}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              ${statusBadge}
+              ${deleteBtn}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+            <div class="sm:col-span-7">
+              <label class="block font-semibold text-slate-700 mb-1">Nama Pemilik ${num}</label>
+              <div class="relative">
+                <i class="fa-solid fa-user-pen absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="${nameInputId}" data-owner-id="${o.ownerId}" placeholder="Contoh: Dewa Ayu" value="${o.name || ''}" class="owner-name-input w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg font-bold text-slate-800 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+              </div>
+            </div>
+
+            <div class="sm:col-span-5">
+              <label class="block font-semibold text-slate-700 mb-1">PIN Login (4-6 Digit)</label>
+              <div class="relative">
+                <i class="fa-solid fa-key absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="password" id="${pinInputId}" data-owner-id="${o.ownerId}" maxlength="6" value="${o.pin || ''}" placeholder="****" class="owner-pin-input w-full pl-8 pr-8 py-2 bg-white border border-slate-200 rounded-lg font-mono font-bold tracking-widest text-slate-800 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                <button type="button" onclick="app.toggleOwnerPinVisibility('${pinInputId}', '${eyeIconId}')" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1" title="Lihat / Sembunyikan PIN">
+                  <i id="${eyeIconId}" class="fa-solid fa-eye text-xs"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  syncOwnerInputsFromDOM() {
+    (this.owners || []).forEach(o => {
+      const nameInput = document.getElementById(`settingOwnerName_${o.ownerId}`);
+      const pinInput = document.getElementById(`settingOwnerPin_${o.ownerId}`);
+      if (nameInput && nameInput.value.trim()) {
+        o.name = nameInput.value.trim();
+      }
+      if (pinInput && pinInput.value.trim()) {
+        o.pin = pinInput.value.trim();
+      }
+    });
+  }
+
+  addNewOwnerAccount() {
+    if (!this.activeSession || this.activeSession.type !== "owner") {
+      this.showToast("Hanya Pemilik Toko yang dapat menambahkan akun Pemilik baru!", "warning");
+      return;
+    }
+
+    // Simpan sementara nilai yang sedang diketik di form agar tidak hilang
+    this.syncOwnerInputsFromDOM();
+
+    // Cari nomor ID pemilik berikutnya
+    let nextNum = (this.owners || []).length + 1;
+    let nextId = `OWNER-${nextNum}`;
+    while (this.owners.some(o => o.ownerId === nextId)) {
+      nextNum++;
+      nextId = `OWNER-${nextNum}`;
+    }
+
+    const newOwner = {
+      ownerId: nextId,
+      name: `Pemilik ${nextNum}`,
+      pin: "1234",
+      role: "owner"
+    };
+
+    this.owners.push(newOwner);
+    this.saveOwners();
+    this.fillSettingsForm();
+    this.showToast(`Akun Pemilik Baru (${nextId}) ditambahkan! Silakan ubah nama dan PIN-nya.`, "success");
+
+    setTimeout(() => {
+      const newNameInput = document.getElementById(`settingOwnerName_${nextId}`);
+      if (newNameInput) {
+        newNameInput.focus();
+        if (typeof newNameInput.select === "function") newNameInput.select();
+      }
+    }, 80);
+  }
+
+  deleteOwnerAccount(ownerId) {
+    if (!this.activeSession || this.activeSession.type !== "owner") {
+      this.showToast("Hanya Pemilik Toko yang dapat menghapus akun Pemilik!", "warning");
+      return;
+    }
+
+    if ((this.owners || []).length <= 1) {
+      this.showToast("Minimal harus ada 1 akun Pemilik Toko!", "warning");
+      return;
+    }
+
+    const target = this.owners.find(o => o.ownerId === ownerId);
+    if (!target) return;
+
+    if (this.activeSession && this.activeSession.id === ownerId) {
+      this.showToast("Tidak dapat menghapus akun Pemilik yang sedang digunakan login saat ini! Pindah login terlebih dahulu.", "warning");
+      return;
+    }
+
+    if (!confirm(`Hapus akun Pemilik "${target.name}" (${target.ownerId})?`)) return;
+
+    this.syncOwnerInputsFromDOM();
+    this.owners = this.owners.filter(o => o.ownerId !== ownerId);
+    this.saveOwners();
+    this.fillSettingsForm();
+    this.showToast(`Akun Pemilik "${target.name}" telah dihapus.`, "info");
+  }
+
+  toggleOwnerPinVisibility(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (!input) return;
+    if (input.type === "password") {
+      input.type = "text";
+      if (icon) icon.className = "fa-solid fa-eye-slash text-xs text-purple-600";
+    } else {
+      input.type = "password";
+      if (icon) icon.className = "fa-solid fa-eye text-xs";
+    }
+  }
+
+  saveOwnerAccountSettings(silent = false) {
+    if (!this.activeSession || this.activeSession.type !== "owner") {
+      if (!silent) this.showToast("Hanya Pemilik Toko yang dapat mengubah nama dan PIN Pemilik!", "warning");
+      return false;
+    }
+
+    for (let i = 0; i < (this.owners || []).length; i++) {
+      const o = this.owners[i];
+      const nameInput = document.getElementById(`settingOwnerName_${o.ownerId}`);
+      const pinInput = document.getElementById(`settingOwnerPin_${o.ownerId}`);
+
+      const newName = nameInput ? nameInput.value.trim() : o.name;
+      const newPin = pinInput ? pinInput.value.trim() : o.pin;
+
+      if (!newName || !newPin) {
+        if (!silent) {
+          this.showToast(`Nama dan PIN untuk Akun Pemilik ${i + 1} (${o.ownerId}) tidak boleh kosong!`, "warning");
+          if (!newName && nameInput) nameInput.focus();
+          else if (!newPin && pinInput) pinInput.focus();
+        }
+        return false;
+      }
+
+      o.name = newName;
+      o.pin = newPin;
+    }
+
+    this.saveOwners();
+
+    // Jika sesi pemilik sedang aktif, perbarui nama di sesi aktif & header secara langsung
+    if (this.activeSession && this.activeSession.type === "owner") {
+      const updatedCurrentOwner = this.owners.find(o => o.ownerId === this.activeSession.id);
+      if (updatedCurrentOwner) {
+        this.activeSession.name = updatedCurrentOwner.name;
+        this.saveActiveSession(this.activeSession);
+        if (this.cashierSession) {
+          this.cashierSession.employeeName = updatedCurrentOwner.name;
+        }
+      }
+    }
+
+    this.updateRoleUI();
+    this.updateCashierShiftUI();
+    this.fillSettingsForm();
+
+    if (!silent) {
+      this.showToast("Daftar Akun, Nama & PIN Login Pemilik berhasil disimpan!", "success");
+    }
+    return true;
   }
 
   saveSettings() {
@@ -2341,7 +3206,11 @@ class KasirApp {
     this.settings.storeName = document.getElementById("settingStoreName").value.trim() || "Toko Berkah Grosir";
     this.settings.storePhone = document.getElementById("settingStorePhone").value.trim();
     this.settings.storeAddress = document.getElementById("settingStoreAddress").value.trim();
-    this.settings.adminPin = document.getElementById("settingAdminPin").value.trim() || "1234";
+
+    // Simpan juga perubahan nama & PIN pemilik jika sedang login sebagai Pemilik
+    if (this.activeSession && this.activeSession.type === "owner") {
+      this.saveOwnerAccountSettings(true);
+    }
 
     this.saveSettingsLocal();
     document.getElementById("headerStoreName").textContent = this.settings.storeName;
@@ -2394,20 +3263,93 @@ class KasirApp {
     await this.syncPendingData();
   }
 
-  async syncPendingData() {
-    if (this.isOnlineState === false || !this.settings.gasUrl) return;
+  // Refresh otomatis setelah transaksi (online: upload antrean lalu muat ulang data & UI)
+  async autoRefreshAfterTransaction() {
+    try {
+      const isOnline = await this.checkNetworkStatus(true);
+      if (isOnline && this.settings.gasUrl) {
+        await this.syncPendingData(true);
+      }
+      this.softReloadData();
+    } catch (err) {
+      console.warn("Auto refresh error:", err);
+    }
+  }
+
+  // Muat ulang state dari penyimpanan lokal & render ulang UI tanpa reload halaman (struk/keranjang aman)
+  softReloadData() {
+    try {
+      const safeParse = (key, fallback) => {
+        try {
+          const v = localStorage.getItem(key);
+          return v ? JSON.parse(v) : fallback;
+        } catch (e) { return fallback; }
+      };
+      this.transactions = safeParse("toko_transactions", this.transactions);
+      this.expenses = safeParse("toko_expenses", this.expenses);
+      this.products = safeParse("toko_products", this.products);
+      this.users = safeParse("toko_users", this.users);
+
+      this.renderPosProducts();
+      this.renderTransactionHistory();
+      this.renderExpensesTable();
+      this.renderProductMasterTable();
+      if (this.currentRole === "admin" || this.currentRole === "owner") this.renderProfitLoss();
+      this.updatePendingCount();
+    } catch (err) {
+      console.warn("Soft reload error:", err);
+    }
+  }
+
+  // Worker: coba upload antrean tiap 30 detik & saat tab aktif kembali
+  startAutoSyncWorker() {
+    if (this._autoSyncStarted) return;
+    this._autoSyncStarted = true;
+    setInterval(() => {
+      if (this.isOnlineState && this.settings.gasUrl && this.getPendingTotal() > 0) {
+        this.syncPendingData(true);
+      }
+    }, 30000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") this.autoRefreshAfterTransaction();
+    });
+  }
+
+  getPendingTotal() {
+    const tx = (this.transactions || []).filter(t => !t.isSynced).length;
+    const ex = (this.expenses || []).filter(e => !e.isSynced).length;
+    const cc = (this.cancelledInvoices || []).length;
+    return tx + ex + cc;
+  }
+
+  async syncPendingData(silent = false) {
+    this.startAutoSyncWorker();
+    if (this.isOnlineState === false || !this.settings.gasUrl) {
+      this.updatePendingCount();
+      return;
+    }
+    // Kunci: cegah upload ganda bila sync dipanggil bersamaan
+    if (this.isSyncing) {
+      this._syncAgain = true;
+      return;
+    }
 
     const pendingTx = this.transactions.filter(t => !t.isSynced);
     const pendingExp = this.expenses.filter(e => !e.isSynced);
-    const hasCancelled = (this.cancelledInvoices && this.cancelledInvoices.length > 0);
+    const cancelledSnapshot = [...(this.cancelledInvoices || [])];
+    const hasCancelled = cancelledSnapshot.length > 0;
 
     if (pendingTx.length === 0 && pendingExp.length === 0 && !hasCancelled) {
       this.updatePendingCount();
       return;
     }
 
+    this.isSyncing = true;
     const syncBtn = document.getElementById("syncNowBtn");
-    syncBtn.classList.add("opacity-50", "pointer-events-none");
+    if (syncBtn) syncBtn.classList.add("opacity-50", "pointer-events-none");
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     try {
       const payload = {
@@ -2417,16 +3359,16 @@ class KasirApp {
         expenses: pendingExp,
         products: this.products,
         users: this.users,
-        cancelledInvoices: this.cancelledInvoices || []
+        cancelledInvoices: cancelledSnapshot
       };
 
-      // Push to Google Apps Script
-      // Using fetch with text/plain body to avoid CORS preflight blocks in Apps Script
+      // text/plain untuk menghindari CORS preflight di Apps Script
       const res = await fetch(this.settings.gasUrl, {
         method: "POST",
         redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
 
       if (res.status === 403 || res.status === 401) {
@@ -2436,19 +3378,27 @@ class KasirApp {
 
       const data = await res.json();
       if (data && data.status === "success") {
-        // Mark all items as synced
-        pendingTx.forEach(t => t.isSynced = true);
-        pendingExp.forEach(e => e.isSynced = true);
+        // Tandai HANYA item yang benar-benar terkirim (transaksi baru selama upload tetap di antrean)
+        const sentTxIds = new Set(pendingTx.map(t => t.invoiceNo || t.id));
+        const sentExpIds = new Set(pendingExp.map(e => e.id));
+        this.transactions.forEach(t => { if (sentTxIds.has(t.invoiceNo || t.id)) t.isSynced = true; });
+        this.expenses.forEach(e => { if (sentExpIds.has(e.id)) e.isSynced = true; });
 
         if (hasCancelled) {
-          this.cancelledInvoices = [];
-          localStorage.removeItem("toko_cancelled_invoices");
+          this.cancelledInvoices = (this.cancelledInvoices || []).filter(c => !cancelledSnapshot.includes(c));
+          if (this.cancelledInvoices.length === 0) {
+            localStorage.removeItem("toko_cancelled_invoices");
+          } else {
+            localStorage.setItem("toko_cancelled_invoices", JSON.stringify(this.cancelledInvoices));
+          }
         }
 
         this.saveTransactions();
         this.saveExpenses();
 
-        this.showToast(`${pendingTx.length} transaksi & ${pendingExp.length} pengeluaran berhasil dikirim ke Google Sheets!`, "success");
+        if (!silent || pendingTx.length + pendingExp.length > 0) {
+          this.showToast(`${pendingTx.length} transaksi & ${pendingExp.length} pengeluaran tersinkron ke Google Sheets`, "success");
+        }
         this.renderTransactionHistory();
         this.renderExpensesTable();
       } else {
@@ -2456,10 +3406,17 @@ class KasirApp {
       }
     } catch (err) {
       console.error("Sync Error:", err);
-      this.showToast("Sinkronisasi tertunda (data tetap aman di perangkat lokal)", "info");
+      if (!silent) this.showToast("Sinkronisasi tertunda (data tetap aman di perangkat lokal, akan dikirim otomatis)", "info");
     } finally {
-      syncBtn.classList.remove("opacity-50", "pointer-events-none");
+      clearTimeout(timeoutId);
+      this.isSyncing = false;
+      if (syncBtn) syncBtn.classList.remove("opacity-50", "pointer-events-none");
       this.updatePendingCount();
+      // Jika ada permintaan sync baru saat proses berjalan, jalankan lagi
+      if (this._syncAgain) {
+        this._syncAgain = false;
+        setTimeout(() => this.syncPendingData(true), 500);
+      }
     }
   }
 

@@ -199,3 +199,18 @@ html, body {
   scrollbar-color: #cbd5e1 transparent;
 }
 
+.emp-filter-chip {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.emp-filter-chip:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+}
+.emp-filter-chip.active {
+  background-color: #4f46e5;
+  color: #ffffff;
+  border-color: #4f46e5;
+}
+
