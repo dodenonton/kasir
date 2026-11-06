@@ -341,13 +341,13 @@ class KasirApp {
     if (!statusBadge || !statusDot || !statusText || !offlineBanner) return;
 
     if (isOnline) {
-      statusBadge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 transition-all duration-300";
-      statusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse";
+      statusBadge.className = "flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 transition-all duration-300";
+      statusDot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
       statusText.textContent = "Online";
       offlineBanner.classList.add("hidden");
     } else {
-      statusBadge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-300 transition-all duration-300";
-      statusDot.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
+      statusBadge.className = "flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-300 transition-all duration-300";
+      statusDot.className = "w-2 h-2 rounded-full bg-rose-500";
       statusText.textContent = "Offline";
       offlineBanner.classList.remove("hidden");
     }
@@ -496,23 +496,26 @@ class KasirApp {
     const roleBadge = document.getElementById("currentRoleBadge");
     const roleBtnText = document.getElementById("roleButtonText");
     const roleIcon = document.getElementById("roleIcon");
+    const roleToggleBtn = document.getElementById("roleToggleBtn");
     const adminTabs = document.querySelectorAll(".admin-only");
 
     if (this.currentRole === "admin") {
       if (roleBadge) {
-        roleBadge.textContent = "Admin";
-        roleBadge.className = "font-bold text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded text-[11px] border border-purple-200";
+        roleBadge.textContent = "Mode Admin";
+        roleBadge.className = "font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded text-[10px] sm:text-[11px] border border-purple-200";
       }
-      if (roleBtnText) roleBtnText.textContent = "Mode Kasir";
-      if (roleIcon) roleIcon.className = "fa-solid fa-right-from-bracket text-purple-600";
+      if (roleBtnText) roleBtnText.textContent = "Keluar Admin";
+      if (roleIcon) roleIcon.className = "fa-solid fa-right-from-bracket text-purple-200";
+      if (roleToggleBtn) roleToggleBtn.className = "flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-[11px] sm:text-xs font-semibold shadow-xs transition active:scale-95";
       adminTabs.forEach(el => el.classList.remove("hidden"));
     } else {
       if (roleBadge) {
         roleBadge.textContent = "Kasir (Pegawai)";
-        roleBadge.className = "font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] border border-emerald-200";
+        roleBadge.className = "font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[10px] sm:text-[11px] border border-emerald-200";
       }
       if (roleBtnText) roleBtnText.textContent = "Login Admin";
-      if (roleIcon) roleIcon.className = "fa-solid fa-user-shield text-slate-500";
+      if (roleIcon) roleIcon.className = "fa-solid fa-user-shield text-indigo-300";
+      if (roleToggleBtn) roleToggleBtn.className = "flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[11px] sm:text-xs font-semibold shadow-xs transition active:scale-95";
       adminTabs.forEach(el => el.classList.add("hidden"));
     }
   }
@@ -527,16 +530,15 @@ class KasirApp {
       if (cashierContainer) {
         const shortShift = (this.cashierSession.shift || "Shift 1").split(" ")[0];
         cashierContainer.innerHTML = `
-          <div class="flex items-center bg-indigo-50 border border-indigo-200 rounded-lg shadow-xs overflow-hidden">
-            <button onclick="app.openEmployeeLoginModal()" class="flex items-center space-x-1.5 px-2.5 py-1.5 hover:bg-indigo-100 text-indigo-900 text-xs font-semibold transition active:scale-95" title="Ganti Petugas Kasir / Shift">
+          <div class="inline-flex items-center h-8 sm:h-9 bg-indigo-50 border border-indigo-200 rounded-lg shadow-2xs overflow-hidden">
+            <button onclick="app.openEmployeeLoginModal()" class="flex items-center space-x-1.5 px-2.5 h-full hover:bg-indigo-100 text-indigo-950 text-[11px] sm:text-xs font-semibold transition active:scale-95" title="Ganti Petugas Kasir / Shift">
               <i class="fa-solid fa-id-badge text-indigo-600"></i>
-              <span class="max-w-[110px] truncate">${this.cashierSession.employeeName || 'Pegawai 1'}</span>
+              <span class="max-w-[90px] sm:max-w-[130px] truncate font-bold">${this.cashierSession.employeeName || 'Pegawai 1'}</span>
               <span class="text-indigo-300">•</span>
-              <span>${this.cashierSession.cashierNumber || 'Kasir 01'}</span>
-              <span class="text-indigo-300">•</span>
+              <span class="text-indigo-700">${this.cashierSession.cashierNumber || 'Kasir 01'}</span>
               <span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">${shortShift}</span>
             </button>
-            <button onclick="app.logoutCashier()" class="px-2 py-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border-l border-indigo-200 transition" title="Logout / Keluar Petugas Kasir">
+            <button onclick="app.logoutCashier()" class="px-2.5 h-full flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 border-l border-indigo-200 transition" title="Logout / Keluar Petugas Kasir">
               <i class="fa-solid fa-power-off text-xs"></i>
             </button>
           </div>
@@ -546,15 +548,15 @@ class KasirApp {
       // --- CART: ACTIVE CASHIER BAR ---
       if (cartCashierBar) {
         cartCashierBar.innerHTML = `
-          <div class="px-4 py-1.5 bg-slate-100/70 border-b border-slate-200/60 flex items-center justify-between text-[11px] text-slate-600">
-            <div class="flex items-center gap-1.5 truncate">
-              <i class="fa-solid fa-user-tag text-indigo-600 text-xs"></i>
-              <span class="truncate">Petugas: <b class="text-slate-800">${this.cashierSession.cashierNumber || 'Kasir 01'} (${this.cashierSession.employeeName || 'Pegawai 1'})</b></span>
+          <div class="px-3.5 py-2 bg-indigo-50/50 border-b border-indigo-100/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <i class="fa-solid fa-user-tag text-indigo-600 text-xs shrink-0"></i>
+              <span class="truncate">Petugas: <b class="text-slate-900">${this.cashierSession.cashierNumber || 'Kasir 01'} (${this.cashierSession.employeeName || 'Pegawai 1'})</b></span>
               <span class="text-slate-300">•</span>
-              <span class="font-bold text-indigo-700">${this.cashierSession.shift || 'Shift 1'}</span>
+              <span class="font-bold text-indigo-700 shrink-0">${(this.cashierSession.shift || 'Shift 1').split(' ')[0]}</span>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <button onclick="app.openShiftReportModal()" class="text-[10px] text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold transition" title="Lihat rekap penjualan & uang di laci shift ini">
+            <div class="flex items-center gap-2 shrink-0 ml-auto">
+              <button onclick="app.openShiftReportModal()" class="text-[10px] text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-200 font-bold transition" title="Lihat rekap penjualan & uang di laci shift ini">
                 <i class="fa-solid fa-calculator mr-1"></i>Rekap Shift
               </button>
               <button onclick="app.openEmployeeLoginModal()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline" title="Ganti kasir / shift">
@@ -568,7 +570,7 @@ class KasirApp {
       // --- HEADER: LOGIN PROMPT (BELUM LOGIN) ---
       if (cashierContainer) {
         cashierContainer.innerHTML = `
-          <button onclick="app.openEmployeeLoginModal()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg text-xs font-bold shadow-sm transition active:scale-95 animate-pulse" title="Klik untuk Login Kasir Sebelum Jualan">
+          <button onclick="app.openEmployeeLoginModal()" class="inline-flex items-center space-x-1.5 h-8 sm:h-9 px-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg text-[11px] sm:text-xs font-bold shadow-xs transition active:scale-95" title="Klik untuk Login Kasir Sebelum Jualan">
             <i class="fa-solid fa-lock text-amber-100"></i>
             <span>Login Kasir Dulu</span>
           </button>
@@ -578,14 +580,13 @@ class KasirApp {
       // --- CART: CASHIER WARNING (BELUM LOGIN) ---
       if (cartCashierBar) {
         cartCashierBar.innerHTML = `
-          <div class="px-4 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between text-[11px] text-amber-900">
-            <div class="flex items-center gap-1.5">
-              <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
-              <span class="font-bold">Kasir Belum Login:</span>
-              <span>Login dulu sebelum melayani transaksi</span>
+          <div class="px-3.5 py-2 bg-amber-50 border-b border-amber-200/80 flex items-center justify-between gap-2 text-[11px] text-amber-900">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <i class="fa-solid fa-triangle-exclamation text-amber-600 shrink-0"></i>
+              <span class="truncate"><b class="font-bold">Belum Login:</b> Wajib login kasir sebelum jualan</span>
             </div>
-            <button onclick="app.openEmployeeLoginModal()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-[10px] shadow-xs transition">
-              Login Sekarang
+            <button onclick="app.openEmployeeLoginModal()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-md text-[10px] shadow-2xs shrink-0 transition">
+              Login Kasir
             </button>
           </div>
         `;
@@ -1092,6 +1093,13 @@ class KasirApp {
     return parts.length > 0 ? parts.join(" + ") : `0 ${prod.baseUnit}`;
   }
 
+  scrollToCart() {
+    const cartEl = document.getElementById("posCartSection");
+    if (cartEl) {
+      cartEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
   renderPosProducts() {
     const grid = document.getElementById("posProductGrid");
     const query = (document.getElementById("posSearchInput").value || "").toLowerCase().trim();
@@ -1112,9 +1120,9 @@ class KasirApp {
 
     if (filtered.length === 0) {
       grid.innerHTML = `
-        <div class="col-span-2 py-12 text-center text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+        <div class="col-span-full py-12 text-center text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
           <i class="fa-solid fa-magnifying-glass text-3xl mb-2 opacity-50"></i>
-          <p class="text-sm">Barang tidak ditemukan</p>
+          <p class="text-sm font-medium">Barang tidak ditemukan</p>
         </div>
       `;
       return;
@@ -1134,15 +1142,15 @@ class KasirApp {
         return `
           <button onclick="app.addToCart('${prod.id}', '${unit.unitName}')" 
                   ${disabled ? "disabled" : ""} 
-                  class="flex flex-col text-left p-2 rounded-xl border transition ${disabled ? 'opacity-40 bg-slate-100 border-slate-200 cursor-not-allowed' : 'bg-slate-50 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50'}">
-            <div class="flex items-center justify-between w-full">
-              <span class="font-bold text-xs text-slate-800">${unit.unitName}</span>
-              <span class="text-[10px] text-slate-500 font-mono">${unit.multiplier > 1 ? 'isi ' + unit.multiplier : '1 ' + prod.baseUnit}</span>
+                  class="flex flex-col justify-between text-left p-2.5 rounded-xl border transition active:scale-[0.98] ${disabled ? 'opacity-45 bg-slate-100 border-slate-200 cursor-not-allowed' : 'bg-slate-50/80 border-slate-200/90 hover:border-indigo-500 hover:bg-indigo-50/60 hover:shadow-2xs'}">
+            <div class="flex items-center justify-between w-full gap-1">
+              <span class="font-bold text-xs text-slate-900 truncate">${unit.unitName}</span>
+              <span class="text-[10px] text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200/80 font-mono shrink-0">${unit.multiplier > 1 ? 'x' + unit.multiplier : '1 ' + prod.baseUnit}</span>
             </div>
-            <div class="flex items-center justify-between w-full mt-1">
-              <span class="text-xs font-black text-indigo-600">Rp ${unit.sellPrice.toLocaleString("id-ID")}</span>
-              <span class="text-[10px] font-semibold ${disabled ? 'text-red-500' : 'text-slate-500'}">
-                ${disabled ? 'Kurang' : 'Sisa ' + canSellQty.toLocaleString('id-ID')}
+            <div class="flex items-baseline justify-between w-full mt-1.5 gap-1">
+              <span class="text-xs font-black text-indigo-600 truncate">Rp ${unit.sellPrice.toLocaleString("id-ID")}</span>
+              <span class="text-[10px] font-semibold shrink-0 ${disabled ? 'text-rose-500' : 'text-emerald-700'}">
+                ${disabled ? 'Habis' : canSellQty.toLocaleString('id-ID')}
               </span>
             </div>
           </button>
@@ -1150,27 +1158,25 @@ class KasirApp {
       }).join("");
 
       return `
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:shadow-md transition">
+        <div class="bg-white p-3.5 sm:p-4 rounded-2xl shadow-xs border border-slate-200/90 flex flex-col justify-between hover:border-slate-300 hover:shadow-sm transition">
           <div>
-            <div class="flex items-start justify-between gap-2 mb-2">
-              <div>
-                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${prod.category}</span>
-                <h3 class="font-bold text-slate-900 text-sm mt-1 leading-snug">${prod.name}</h3>
-              </div>
-              <div class="text-right">
-                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full ${isOutOfStock ? 'bg-red-100 text-red-700' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}">
-                  ${prod.stock.toLocaleString('id-ID')} ${prod.baseUnit}
-                </span>
-              </div>
-            </div>
-            
-            <!-- Real-time Multi-Unit Breakdown -->
-            <div class="text-[11px] text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200/70 mb-2.5 flex items-center gap-1.5">
-              <i class="fa-solid fa-cubes-stacked text-indigo-500 text-xs shrink-0"></i>
-              <span class="truncate" title="${breakdownText}"><b>Pecahan:</b> ${breakdownText}</span>
+            <!-- Top Badge Row -->
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">${prod.category}</span>
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-md shrink-0 ${isOutOfStock ? 'bg-rose-100 text-rose-700' : 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'}">
+                ${prod.stock.toLocaleString('id-ID')} ${prod.baseUnit}
+              </span>
             </div>
 
-            <p class="text-[11px] text-slate-500 mb-1.5 font-medium">Pilih Satuan Jual:</p>
+            <!-- Product Title -->
+            <h3 class="font-bold text-slate-900 text-sm leading-snug mb-2">${prod.name}</h3>
+            
+            <!-- Real-time Multi-Unit Breakdown -->
+            <div class="text-[11px] text-slate-600 bg-indigo-50/40 px-2.5 py-1.5 rounded-xl border border-indigo-100/80 mb-3 flex items-start gap-1.5">
+              <i class="fa-solid fa-cubes-stacked text-indigo-500 text-xs mt-0.5 shrink-0"></i>
+              <span class="leading-tight break-words" title="${breakdownText}"><b class="text-slate-700">Stok:</b> ${breakdownText}</span>
+            </div>
+
             <div class="grid grid-cols-2 gap-1.5">
               ${unitButtons}
             </div>
@@ -1266,16 +1272,18 @@ class KasirApp {
   renderCart() {
     const container = document.getElementById("cartItemList");
     const countBadge = document.getElementById("cartCountBadge");
-    const emptyState = document.getElementById("cartEmptyState");
+    const mobileCountBadge = document.getElementById("mobileCartCountBadge");
+    const totalQty = this.cart.reduce((sum, item) => sum + item.qty, 0);
 
-    countBadge.textContent = this.cart.length;
+    if (countBadge) countBadge.textContent = this.cart.length;
+    if (mobileCountBadge) mobileCountBadge.textContent = totalQty;
 
     if (this.cart.length === 0) {
       container.innerHTML = `
-        <div id="cartEmptyState" class="h-full flex flex-col items-center justify-center text-slate-400 py-12">
-          <i class="fa-solid fa-cart-arrow-down text-4xl mb-2 opacity-50"></i>
-          <p class="text-sm">Keranjang masih kosong</p>
-          <p class="text-xs text-slate-400">Pilih barang di sebelah kiri</p>
+        <div id="cartEmptyState" class="h-full flex flex-col items-center justify-center text-slate-400 py-8">
+          <i class="fa-solid fa-cart-arrow-down text-3xl mb-2 opacity-40"></i>
+          <p class="text-xs font-semibold text-slate-500">Keranjang masih kosong</p>
+          <p class="text-[11px] text-slate-400">Klik satuan barang untuk menambahkan</p>
         </div>
       `;
       this.updateCartSummary();
@@ -1283,26 +1291,26 @@ class KasirApp {
     }
 
     container.innerHTML = this.cart.map((item, idx) => `
-      <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+      <div class="bg-white border border-slate-200/90 rounded-xl p-2.5 shadow-2xs flex flex-col gap-2">
         <div class="flex items-start justify-between gap-2">
-          <div>
-            <h4 class="font-bold text-slate-800 text-xs">${item.product.name}</h4>
-            <div class="flex items-center gap-1.5 mt-0.5">
-              <span class="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Satuan: ${item.unit.unitName}</span>
-              <span class="text-[11px] text-slate-400 font-mono">@Rp ${item.sellPrice.toLocaleString("id-ID")}</span>
+          <div class="min-w-0">
+            <h4 class="font-bold text-slate-900 text-xs truncate">${item.product.name}</h4>
+            <div class="flex items-center flex-wrap gap-1.5 mt-0.5">
+              <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">${item.unit.unitName}</span>
+              <span class="text-[11px] text-slate-500 font-mono">@Rp ${item.sellPrice.toLocaleString("id-ID")}</span>
             </div>
           </div>
-          <button onclick="app.removeFromCart(${idx})" class="text-slate-400 hover:text-red-500 text-xs p-1">
+          <button onclick="app.removeFromCart(${idx})" class="text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md w-6 h-6 flex items-center justify-center text-xs shrink-0 transition" title="Hapus item">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
 
-        <div class="flex items-center justify-between pt-1 border-t border-slate-100">
+        <div class="flex items-center justify-between pt-1.5 border-t border-slate-100">
           <!-- Qty Stepper -->
-          <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
-            <button onclick="app.updateCartQty(${idx}, -1)" class="px-2.5 py-1 text-slate-600 hover:bg-slate-200 font-bold text-xs">-</button>
-            <span class="px-3 py-1 font-bold text-xs text-slate-800 bg-white min-w-[28px] text-center">${item.qty}</span>
-            <button onclick="app.updateCartQty(${idx}, 1)" class="px-2.5 py-1 text-slate-600 hover:bg-slate-200 font-bold text-xs">+</button>
+          <div class="inline-flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
+            <button onclick="app.updateCartQty(${idx}, -1)" class="w-7 h-6 flex items-center justify-center text-slate-600 hover:bg-slate-200 font-bold text-xs transition">-</button>
+            <span class="px-2.5 h-6 flex items-center justify-center font-bold text-xs text-slate-900 bg-white min-w-[30px] border-x border-slate-200">${item.qty}</span>
+            <button onclick="app.updateCartQty(${idx}, 1)" class="w-7 h-6 flex items-center justify-center text-slate-600 hover:bg-slate-200 font-bold text-xs transition">+</button>
           </div>
           <!-- Subtotal -->
           <div class="text-right">
@@ -1321,8 +1329,12 @@ class KasirApp {
     const discount = Math.max(0, Number(discountInput.value) || 0);
     const total = Math.max(0, subtotal - discount);
 
+    const formattedTotal = `Rp ${total.toLocaleString("id-ID")}`;
     document.getElementById("cartSubtotalText").textContent = `Rp ${subtotal.toLocaleString("id-ID")}`;
-    document.getElementById("cartTotalText").textContent = `Rp ${total.toLocaleString("id-ID")}`;
+    document.getElementById("cartTotalText").textContent = formattedTotal;
+
+    const mobileTotalEl = document.getElementById("mobileCartTotalText");
+    if (mobileTotalEl) mobileTotalEl.textContent = formattedTotal;
 
     this.calcKembalian();
   }
@@ -1352,10 +1364,10 @@ class KasirApp {
     const change = cashReceived - total;
     if (change >= 0) {
       kembalianDisplay.textContent = `Rp ${change.toLocaleString("id-ID")}`;
-      kembalianDisplay.className = "px-3 py-2 bg-emerald-50 text-emerald-800 rounded-lg text-sm font-bold border border-emerald-200";
+      kembalianDisplay.className = "px-3 py-1.5 bg-emerald-50 text-emerald-800 rounded-lg text-sm font-bold border border-emerald-200 truncate";
     } else {
       kembalianDisplay.textContent = `Kurang Rp ${Math.abs(change).toLocaleString("id-ID")}`;
-      kembalianDisplay.className = "px-3 py-2 bg-rose-50 text-rose-700 rounded-lg text-sm font-bold border border-rose-200";
+      kembalianDisplay.className = "px-3 py-1.5 bg-rose-50 text-rose-700 rounded-lg text-sm font-bold border border-rose-200 truncate";
     }
   }
 

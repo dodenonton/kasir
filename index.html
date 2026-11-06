@@ -10,68 +10,81 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col pb-16 lg:pb-0">
 
   <!-- TOP STATUS & HEADER BAR -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex items-center justify-between h-16">
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
+    <div class="max-w-[1440px] mx-auto px-3 sm:px-5 lg:px-6">
+      
+      <!-- Top Row: Brand & Action Controls -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between py-2.5 gap-2.5">
         
-        <!-- Store Name & Logo -->
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
-            <i class="fa-solid fa-cash-register text-lg"></i>
+        <!-- Left: Store Name & Role Badge -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
+            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-200 shrink-0">
+              <i class="fa-solid fa-cash-register text-base sm:text-lg"></i>
+            </div>
+            <div class="min-w-0">
+              <h1 id="headerStoreName" class="font-bold text-sm sm:text-lg text-slate-900 leading-tight truncate">Toko Berkah Grosir & Ecer</h1>
+              <div class="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5 flex-wrap">
+                <span class="hidden sm:inline">Sistem Kasir & Laba Rugi</span>
+                <span class="hidden sm:inline text-slate-300">•</span>
+                <span id="currentRoleBadge" class="font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[10px] sm:text-[11px] border border-emerald-200">
+                  Kasir (Pegawai)
+                </span>
+              </div>
+            </div>
           </div>
-          <div>
-            <h1 id="headerStoreName" class="font-bold text-lg text-slate-900 leading-tight">Toko Berkah Grosir & Ecer</h1>
-            <p class="text-xs text-slate-500 flex items-center gap-1">
-              <span>Sistem Kasir & Laba Rugi</span>
-              <span>•</span>
-              <span id="currentRoleBadge" class="font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded text-[11px]">
-                Kasir (Pegawai)
-              </span>
-            </p>
+
+          <!-- Mobile-only Quick Online Dot & Role Button -->
+          <div class="flex items-center gap-1.5 md:hidden shrink-0">
+            <button onclick="app.refreshAll()" class="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-300 transition active:scale-95" title="Segarkan data & koneksi">
+              <i class="fa-solid fa-arrows-rotate text-slate-600 text-xs"></i>
+            </button>
           </div>
         </div>
 
-        <!-- Active Cashier & Shift Switcher -->
-        <div class="flex items-center space-x-2 sm:space-x-3">
+        <!-- Right: Active Cashier, Refresh, Online Status & Login Role Button -->
+        <div class="flex flex-wrap items-center justify-between md:justify-end gap-1.5 sm:gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+          
           <!-- Dynamic Cashier Status (Login Dulu vs Profil Kasir Aktif) -->
-          <div id="cashierStatusContainer">
+          <div id="cashierStatusContainer" class="shrink-0">
             <!-- Injected dynamically by app.updateCashierShiftUI() -->
           </div>
 
-          <!-- Refresh / Segarkan Button (di sebelah kiri Online) -->
-          <button onclick="app.refreshAll()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition active:scale-95" title="Segarkan data & koneksi">
-            <i class="fa-solid fa-arrows-rotate text-slate-500" id="refreshBtnIcon"></i>
-            <span>Segarkan</span>
-          </button>
+          <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
+            <!-- Refresh / Segarkan Button (Desktop/Tablet) -->
+            <button onclick="app.refreshAll()" class="hidden md:flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition active:scale-95" title="Segarkan data & koneksi">
+              <i class="fa-solid fa-arrows-rotate text-slate-500" id="refreshBtnIcon"></i>
+              <span>Segarkan</span>
+            </button>
 
-          <!-- Online/Offline Badge -->
-          <div id="networkStatusBadge" class="flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 transition-all duration-300">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" id="statusDot"></span>
-            <span id="statusText">Online</span>
-          </div>
+            <!-- Online/Offline Badge -->
+            <div id="networkStatusBadge" class="flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 transition-all duration-300">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" id="statusDot"></span>
+              <span id="statusText">Online</span>
+            </div>
 
-          <!-- Pending Sync Counter (shows if there is unsynced data) -->
-          <button id="syncNowBtn" onclick="app.manualSync()" class="relative hidden flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 text-amber-800 border border-amber-300 rounded-full text-xs font-medium hover:bg-amber-100 transition" title="Klik untuk sinkronisasi data ke Google Sheets">
-            <i class="fa-solid fa-cloud-arrow-up" id="syncIcon"></i>
-            <span>Antrean: <b id="pendingCountBadge">0</b></span>
-          </button>
+            <!-- Pending Sync Counter -->
+            <button id="syncNowBtn" onclick="app.manualSync()" class="relative hidden flex items-center space-x-1 h-8 sm:h-9 px-2.5 bg-amber-50 text-amber-800 border border-amber-300 rounded-lg text-[11px] sm:text-xs font-semibold hover:bg-amber-100 transition" title="Klik untuk sinkronisasi data ke Google Sheets">
+              <i class="fa-solid fa-cloud-arrow-up" id="syncIcon"></i>
+              <span>Antrean: <b id="pendingCountBadge">0</b></span>
+            </button>
 
-          <!-- Role Toggle Button (Opens Login Choice Modal: Admin atau Pegawai) -->
-          <div class="relative">
-            <button id="roleToggleBtn" onclick="app.openRoleChoiceModal()" class="flex items-center space-x-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition">
-              <i class="fa-solid fa-user-shield text-slate-500" id="roleIcon"></i>
+            <!-- Role Toggle Button (Opens Login Choice Modal: Admin atau Pegawai) -->
+            <button id="roleToggleBtn" onclick="app.openRoleChoiceModal()" class="flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[11px] sm:text-xs font-semibold shadow-xs transition active:scale-95">
+              <i class="fa-solid fa-user-shield text-indigo-300" id="roleIcon"></i>
               <span id="roleButtonText">Login Admin</span>
             </button>
           </div>
+
         </div>
 
       </div>
 
       <!-- Navigation Tabs -->
-      <nav class="flex space-x-1 sm:space-x-4 border-t border-slate-100 py-1 overflow-x-auto">
+      <nav class="flex items-center space-x-1 sm:space-x-2 border-t border-slate-100 py-1.5 overflow-x-auto no-scrollbar">
         <button onclick="app.switchTab('pos')" id="tab-pos" class="nav-tab active-tab">
           <i class="fa-solid fa-cart-shopping mr-1.5"></i>Kasir
         </button>
@@ -101,64 +114,59 @@
   <!-- OFFLINE WARNING BANNER -->
   <div id="offlineNoticeBanner" class="hidden bg-amber-500 text-white text-xs py-2 px-4 text-center font-medium shadow-inner flex items-center justify-center gap-2">
     <i class="fa-solid fa-triangle-exclamation"></i>
-    <span>Komputer sedang <b>OFFLINE (Tanpa Internet)</b>. Semua transaksi dan pengeluaran tetap disimpan otomatis di perangkat ini, dan akan dikirim ke Google Sheets saat internet kembali terhubung.</span>
+    <span>Perangkat sedang <b>OFFLINE (Tanpa Internet)</b>. Semua transaksi tetap disimpan otomatis di perangkat ini dan akan dikirim ke Google Sheets saat internet kembali terhubung.</span>
   </div>
 
   <!-- MAIN APP CONTAINER -->
-  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+  <main class="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-5 lg:px-6 py-4 sm:py-5">
 
     <!-- ==================== TAB 1: KASIR (POS) ==================== -->
     <section id="view-pos" class="tab-view block">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
         
-        <!-- Left: Product Catalog & Search (7 Cols) -->
-        <div class="lg:col-span-7 space-y-4">
+        <!-- Left: Product Catalog & Search (7 Cols on LG, 8 Cols on XL) -->
+        <div class="lg:col-span-7 xl:col-span-8 space-y-3.5">
           <!-- Search & Filter Bar -->
-          <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-            <div class="relative">
-              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                <i class="fa-solid fa-magnifying-glass"></i>
-              </span>
-              <input type="text" id="posSearchInput" oninput="app.renderPosProducts()" placeholder="Cari nama barang / barcode (contoh: Sampoerna, Djarum, Indomie)..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
-            </div>
-            <!-- Category Chips -->
-            <div class="flex items-center gap-2 mt-3 overflow-x-auto pb-1" id="categoryFilterContainer">
-              <button onclick="app.setCategoryFilter('all')" class="cat-chip active" data-cat="all">Semua</button>
-              <button onclick="app.setCategoryFilter('Rokok')" class="cat-chip" data-cat="Rokok">Rokok</button>
-              <button onclick="app.setCategoryFilter('Sembako')" class="cat-chip" data-cat="Sembako">Sembako</button>
-              <button onclick="app.setCategoryFilter('Minuman')" class="cat-chip" data-cat="Minuman">Minuman</button>
-              <button onclick="app.setCategoryFilter('Lainnya')" class="cat-chip" data-cat="Lainnya">Lainnya</button>
+          <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-xs border border-slate-200/90">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2.5">
+              <div class="relative flex-1">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <i class="fa-solid fa-magnifying-glass text-xs sm:text-sm"></i>
+                </span>
+                <input type="text" id="posSearchInput" oninput="app.renderPosProducts()" placeholder="Cari nama barang / kategori (contoh: Sampoerna, Djarum, Beras, Kopi)..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs sm:text-sm">
+              </div>
+              <!-- Category Chips -->
+              <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 sm:pb-0" id="categoryFilterContainer">
+                <button onclick="app.setCategoryFilter('all')" class="cat-chip active" data-cat="all">Semua</button>
+                <button onclick="app.setCategoryFilter('Rokok')" class="cat-chip" data-cat="Rokok">Rokok</button>
+                <button onclick="app.setCategoryFilter('Sembako')" class="cat-chip" data-cat="Sembako">Sembako</button>
+                <button onclick="app.setCategoryFilter('Minuman')" class="cat-chip" data-cat="Minuman">Minuman</button>
+                <button onclick="app.setCategoryFilter('Lainnya')" class="cat-chip" data-cat="Lainnya">Lainnya</button>
+              </div>
             </div>
           </div>
 
-          <!-- Product Grid -->
-          <div id="posProductGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
+          <!-- Product Grid: 1 col on mobile, 2 cols on tablet/laptop, 3 cols on wide PC -->
+          <div id="posProductGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-3.5">
             <!-- Product cards injected by app.renderPosProducts() -->
           </div>
         </div>
 
-        <!-- Right: Cart & Checkout (5 Cols) -->
-        <div class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[calc(100vh-210px)] sticky top-24">
+        <!-- Right: Cart & Checkout (5 Cols on LG, 4 Cols on XL) -->
+        <div id="posCartSection" class="lg:col-span-5 xl:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col lg:sticky lg:top-[112px] overflow-hidden">
+          
           <!-- Cart Header -->
-          <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-white">
             <div class="flex items-center gap-2">
-              <i class="fa-solid fa-basket-shopping text-indigo-600"></i>
-              <h2 class="font-bold text-slate-800">Keranjang Belanja</h2>
-              <span id="cartCountBadge" class="bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+              <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs">
+                <i class="fa-solid fa-basket-shopping"></i>
+              </div>
+              <h2 class="font-bold text-sm sm:text-base text-slate-900">Keranjang Belanja</h2>
+              <span id="cartCountBadge" class="bg-indigo-600 text-white text-[11px] px-2 py-0.5 rounded-full font-bold">0</span>
             </div>
-            <button onclick="app.clearCart()" class="text-xs text-red-500 hover:text-red-700 font-medium transition">
+            <button onclick="app.clearCart()" class="text-xs text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg font-semibold transition">
               <i class="fa-solid fa-trash-can mr-1"></i>Kosongkan
             </button>
-          </div>
-
-          <!-- Customer Info (Optional) -->
-          <div class="px-4 py-2 bg-slate-50 border-b border-slate-100 flex gap-2">
-            <input type="text" id="customerNameInput" placeholder="Nama Pelanggan (opsional)" class="text-xs w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
-            <select id="paymentTypeSelect" class="text-xs px-2 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium">
-              <option value="Tunai">Tunai / Cash</option>
-              <option value="Transfer">Transfer / QRIS</option>
-              <option value="Hutang">Hutang / Bon</option>
-            </select>
           </div>
 
           <!-- Dynamic Active Cashier & Shift Bar with Closing Shift Action -->
@@ -166,54 +174,72 @@
             <!-- Injected dynamically by app.updateCashierShiftUI() -->
           </div>
 
+          <!-- Customer Info & Payment Type -->
+          <div class="px-3.5 py-2.5 bg-slate-50/80 border-b border-slate-100 grid grid-cols-12 gap-2">
+            <div class="col-span-7">
+              <input type="text" id="customerNameInput" placeholder="Nama Pelanggan (opsional)" class="text-xs w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            </div>
+            <div class="col-span-5">
+              <select id="paymentTypeSelect" class="text-xs w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold text-slate-700">
+                <option value="Tunai">Tunai / Cash</option>
+                <option value="Transfer">Transfer / QRIS</option>
+                <option value="Hutang">Hutang / Bon</option>
+              </select>
+            </div>
+          </div>
+
           <!-- Cart Item List -->
-          <div id="cartItemList" class="flex-1 overflow-y-auto p-4 space-y-3">
-            <div id="cartEmptyState" class="h-full flex flex-col items-center justify-center text-slate-400 py-12">
-              <i class="fa-solid fa-cart-arrow-down text-4xl mb-2 opacity-50"></i>
-              <p class="text-sm">Keranjang masih kosong</p>
-              <p class="text-xs text-slate-400">Pilih barang di sebelah kiri</p>
+          <div id="cartItemList" class="min-h-[180px] max-h-[340px] lg:max-h-[calc(100vh-480px)] overflow-y-auto p-3 space-y-2 bg-slate-50/30">
+            <div id="cartEmptyState" class="h-full flex flex-col items-center justify-center text-slate-400 py-8">
+              <i class="fa-solid fa-cart-arrow-down text-3xl mb-2 opacity-40"></i>
+              <p class="text-xs font-semibold text-slate-500">Keranjang masih kosong</p>
+              <p class="text-[11px] text-slate-400">Klik satuan barang untuk menambahkan</p>
             </div>
           </div>
 
           <!-- Cart Summary & Checkout Button -->
-          <div class="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl space-y-3">
-            <div class="space-y-1.5 text-sm">
-              <div class="flex justify-between text-slate-500">
-                <span>Subtotal</span>
-                <span id="cartSubtotalText">Rp 0</span>
+          <div class="p-3.5 border-t border-slate-200 bg-white space-y-2.5">
+            
+            <!-- Subtotal & Discount -->
+            <div class="space-y-1 text-xs">
+              <div class="flex justify-between items-center text-slate-500">
+                <span>Subtotal Belanja</span>
+                <span id="cartSubtotalText" class="font-semibold text-slate-700">Rp 0</span>
               </div>
               <div class="flex justify-between items-center text-slate-500">
-                <span>Diskon (Rp)</span>
-                <input type="number" id="cartDiscountInput" oninput="app.updateCartSummary()" value="0" min="0" class="w-24 text-right px-2 py-1 text-xs bg-white border border-slate-200 rounded focus:ring-1 focus:ring-indigo-500">
-              </div>
-              <div class="flex justify-between font-bold text-slate-900 text-lg border-t border-slate-200 pt-2">
-                <span>Total Bayar</span>
-                <span id="cartTotalText" class="text-indigo-600">Rp 0</span>
+                <span>Potongan Diskon (Rp)</span>
+                <input type="number" id="cartDiscountInput" oninput="app.updateCartSummary()" value="0" min="0" class="w-28 text-right px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg font-semibold focus:bg-white focus:ring-1 focus:ring-indigo-500">
               </div>
             </div>
 
+            <!-- Total Bayar Highlight -->
+            <div class="flex justify-between items-center bg-indigo-50/80 border border-indigo-100 px-3.5 py-2.5 rounded-xl">
+              <span class="font-bold text-xs uppercase tracking-wider text-indigo-950">Total Bayar</span>
+              <span id="cartTotalText" class="font-black text-lg text-indigo-600">Rp 0</span>
+            </div>
+
             <!-- Quick Cash Buttons -->
-            <div class="grid grid-cols-4 gap-1.5 pt-1">
-              <button onclick="app.setQuickCash('pas')" class="text-[11px] py-1 bg-white border border-slate-200 rounded font-medium hover:bg-slate-100">Uang Pas</button>
-              <button onclick="app.setQuickCash(50000)" class="text-[11px] py-1 bg-white border border-slate-200 rounded font-medium hover:bg-slate-100">50.000</button>
-              <button onclick="app.setQuickCash(100000)" class="text-[11px] py-1 bg-white border border-slate-200 rounded font-medium hover:bg-slate-100">100.000</button>
-              <button onclick="app.setQuickCash(200000)" class="text-[11px] py-1 bg-white border border-slate-200 rounded font-medium hover:bg-slate-100">200.000</button>
+            <div class="grid grid-cols-4 gap-1.5">
+              <button onclick="app.setQuickCash('pas')" class="text-[11px] py-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 border border-slate-200 rounded-lg font-semibold text-slate-700 transition">Uang Pas</button>
+              <button onclick="app.setQuickCash(50000)" class="text-[11px] py-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 border border-slate-200 rounded-lg font-semibold text-slate-700 transition">50.000</button>
+              <button onclick="app.setQuickCash(100000)" class="text-[11px] py-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 border border-slate-200 rounded-lg font-semibold text-slate-700 transition">100.000</button>
+              <button onclick="app.setQuickCash(200000)" class="text-[11px] py-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 border border-slate-200 rounded-lg font-semibold text-slate-700 transition">200.000</button>
             </div>
 
             <!-- Cash Tendered & Kembalian -->
             <div class="grid grid-cols-2 gap-2 text-xs">
               <div>
-                <label class="block text-slate-500 mb-1">Diterima (Rp)</label>
-                <input type="number" id="cashReceivedInput" oninput="app.calcKembalian()" placeholder="0" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-indigo-500">
+                <label class="block text-[11px] font-medium text-slate-500 mb-1">Uang Diterima (Rp)</label>
+                <input type="number" id="cashReceivedInput" oninput="app.calcKembalian()" placeholder="0" class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
               </div>
               <div>
-                <label class="block text-slate-500 mb-1">Kembalian</label>
-                <div id="cashChangeDisplay" class="px-3 py-2 bg-slate-200/60 rounded-lg text-sm font-bold text-slate-700">Rp 0</div>
+                <label class="block text-[11px] font-medium text-slate-500 mb-1">Kembalian</label>
+                <div id="cashChangeDisplay" class="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-bold text-slate-700 truncate">Rp 0</div>
               </div>
             </div>
 
             <!-- Checkout Action -->
-            <button onclick="app.processCheckout()" id="btnProcessCheckout" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 flex items-center justify-center space-x-2 transition disabled:opacity-50">
+            <button onclick="app.processCheckout()" id="btnProcessCheckout" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-indigo-200 flex items-center justify-center space-x-2 transition disabled:opacity-50">
               <i class="fa-solid fa-check-circle"></i>
               <span>SELESAIKAN TRANSAKSI (F9)</span>
             </button>
@@ -221,17 +247,35 @@
         </div>
 
       </div>
+
+      <!-- MOBILE STICKY BOTTOM CART BAR (Only on screens < lg) -->
+      <div id="mobileCartFloatingBar" class="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-slate-900/95 backdrop-blur-md text-white px-4 py-2.5 shadow-2xl border-t border-slate-700 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="relative w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-basket-shopping text-sm"></i>
+            <span id="mobileCartCountBadge" class="absolute -top-1.5 -right-1.5 bg-amber-400 text-slate-950 text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-900">0</span>
+          </div>
+          <div class="min-w-0">
+            <span class="block text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Total Keranjang</span>
+            <span id="mobileCartTotalText" class="block font-black text-sm text-white truncate">Rp 0</span>
+          </div>
+        </div>
+        <button onclick="app.scrollToCart()" class="px-4 py-2.5 bg-indigo-500 hover:bg-indigo-400 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 shrink-0 transition">
+          <span>Lihat Keranjang</span>
+          <i class="fa-solid fa-arrow-down text-[10px]"></i>
+        </button>
+      </div>
     </section>
 
     <!-- ==================== TAB 2: RIWAYAT TRANSAKSI ==================== -->
     <section id="view-history" class="tab-view hidden space-y-4">
-      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
         <div>
-          <h2 class="text-lg font-bold text-slate-900">Riwayat Penjualan & Nota</h2>
+          <h2 class="text-base sm:text-lg font-bold text-slate-900">Riwayat Penjualan & Nota</h2>
           <p class="text-xs text-slate-500">Daftar transaksi tersimpan di perangkat dan status sinkronisasi ke spreadsheet</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <input type="date" id="historyDateFilter" onchange="app.renderTransactionHistory()" class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg">
+        <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
+          <input type="date" id="historyDateFilter" onchange="app.renderTransactionHistory()" class="col-span-2 sm:col-span-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-50 font-medium">
           <select id="historyCashierFilter" onchange="app.renderTransactionHistory()" class="px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-white font-medium">
             <option value="all">Semua Kasir</option>
             <option value="Kasir 01">Kasir 01</option>
@@ -246,19 +290,19 @@
             <option value="Shift 3">Shift 3 (Malam)</option>
             <option value="Non-Shift">Non-Shift</option>
           </select>
-          <button onclick="app.openShiftReportModal()" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-300 transition">
-            <i class="fa-solid fa-calculator mr-1"></i>Rekap Shift
+          <button onclick="app.openShiftReportModal()" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-300 transition flex items-center justify-center">
+            <i class="fa-solid fa-calculator mr-1.5"></i>Rekap Shift
           </button>
-          <button onclick="app.renderTransactionHistory()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg">
-            <i class="fa-solid fa-rotate-right mr-1"></i>Refresh
+          <button onclick="app.renderTransactionHistory()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg flex items-center justify-center">
+            <i class="fa-solid fa-rotate-right mr-1.5"></i>Refresh
           </button>
         </div>
       </div>
 
       <!-- History Table -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs">
+          <table class="w-full text-left text-xs whitespace-nowrap">
             <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-200">
               <tr>
                 <th class="py-3 px-4">No. Faktur</th>
@@ -286,10 +330,10 @@
 
     <!-- ==================== TAB 3: PENGELUARAN BIAYA ==================== -->
     <section id="view-expenses" class="tab-view hidden space-y-4">
-      <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         
         <!-- Form Tambah Pengeluaran (4 Cols) -->
-        <div class="md:col-span-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+        <div class="lg:col-span-4 bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200 space-y-4">
           <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
             <i class="fa-solid fa-plus-circle text-indigo-600"></i>
             <span>Catat Biaya Operasional</span>
@@ -299,12 +343,12 @@
           <form id="expenseForm" onsubmit="app.saveExpense(event)" class="space-y-3 text-xs">
             <div>
               <label class="block font-semibold text-slate-700 mb-1">Tanggal</label>
-              <input type="date" id="expenseDate" required class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+              <input type="date" id="expenseDate" required class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white">
             </div>
 
             <div>
               <label class="block font-semibold text-slate-700 mb-1">Kategori Biaya</label>
-              <select id="expenseCategory" required class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+              <select id="expenseCategory" required class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white">
                 <option value="Listrik">Listrik & Token</option>
                 <option value="Gaji Pegawai">Gaji Pegawai</option>
                 <option value="Wifi & Komunikasi">Wifi & Pulsa / Internet</option>
@@ -326,27 +370,27 @@
               <textarea id="expenseNotes" rows="2" placeholder="Contoh: Bayar token listrik PLN 200rb" class="w-full px-3 py-2 border border-slate-200 rounded-lg"></textarea>
             </div>
 
-            <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition">
               <i class="fa-solid fa-floppy-disk mr-1"></i>Simpan Pengeluaran
             </button>
           </form>
         </div>
 
         <!-- Tabel Riwayat Pengeluaran (8 Cols) -->
-        <div class="md:col-span-8 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-          <div class="flex items-center justify-between">
+        <div class="lg:col-span-8 bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 class="font-bold text-slate-900">Daftar Biaya Operasional</h3>
               <p class="text-xs text-slate-500">Total terdata di sistem lokal & cloud</p>
             </div>
-            <div class="text-right">
-              <span class="text-xs text-slate-500">Total Biaya Bulan Ini:</span>
-              <p id="totalExpenseThisMonthBadge" class="text-base font-bold text-red-600">Rp 0</p>
+            <div class="bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-xl text-right">
+              <span class="text-[11px] text-rose-700 font-medium">Total Biaya Bulan Ini:</span>
+              <p id="totalExpenseThisMonthBadge" class="text-sm sm:text-base font-black text-rose-600">Rp 0</p>
             </div>
           </div>
 
           <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
+            <table class="w-full text-left text-xs whitespace-nowrap">
               <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-200">
                 <tr>
                   <th class="py-2.5 px-3">Tanggal</th>
@@ -371,25 +415,25 @@
     </section>
 
     <!-- ==================== TAB 4: LABA RUGI (ADMIN ONLY) ==================== -->
-    <section id="view-profitloss" class="tab-view hidden space-y-6">
+    <section id="view-profitloss" class="tab-view hidden space-y-5">
       
       <!-- Filter Period Card -->
-      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+      <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs font-bold rounded">KHUSUS ADMIN</span>
-            <h2 class="text-lg font-bold text-slate-900">Laporan Laba Rugi Toko</h2>
+            <span class="px-2 py-0.5 bg-purple-100 text-purple-800 text-[10px] font-bold rounded">KHUSUS ADMIN</span>
+            <h2 class="text-base sm:text-lg font-bold text-slate-900">Laporan Laba Rugi Toko</h2>
           </div>
-          <p class="text-xs text-slate-500">Perhitungan otomatis: Omset Penjualan - HPP (Modal Barang) - Biaya Operasional = Laba Bersih</p>
+          <p class="text-xs text-slate-500 mt-0.5">Perhitungan otomatis: Omset Penjualan - HPP (Modal Barang) - Biaya Operasional = Laba Bersih</p>
         </div>
 
         <!-- Period Selectors -->
-        <div class="flex items-center gap-2">
-          <select id="plModeSelect" onchange="app.renderProfitLoss()" class="text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
-            <option value="monthly">Laporan Bulanan</option>
-            <option value="yearly">Laporan Tahunan</option>
+        <div class="grid grid-cols-3 sm:flex items-center gap-2">
+          <select id="plModeSelect" onchange="app.renderProfitLoss()" class="text-xs font-semibold px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+            <option value="monthly">Bulanan</option>
+            <option value="yearly">Tahunan</option>
           </select>
-          <select id="plMonthSelect" onchange="app.renderProfitLoss()" class="text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+          <select id="plMonthSelect" onchange="app.renderProfitLoss()" class="text-xs font-semibold px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg">
             <option value="1">Januari</option>
             <option value="2">Februari</option>
             <option value="3">Maret</option>
@@ -403,137 +447,137 @@
             <option value="11">November</option>
             <option value="12">Desember</option>
           </select>
-          <select id="plYearSelect" onchange="app.renderProfitLoss()" class="text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+          <select id="plYearSelect" onchange="app.renderProfitLoss()" class="text-xs font-semibold px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg">
             <!-- Injected by JS -->
           </select>
         </div>
       </div>
 
       <!-- KPI Summary Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
         <!-- Revenue / Omset -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-          <div class="flex items-center justify-between text-slate-500 text-xs mb-2">
+        <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-xs mb-1.5">
             <span>Total Omset (Penjualan)</span>
             <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
               <i class="fa-solid fa-arrow-trend-up"></i>
             </div>
           </div>
-          <h3 id="kpiRevenue" class="text-2xl font-black text-slate-900">Rp 0</h3>
+          <h3 id="kpiRevenue" class="text-xl sm:text-2xl font-black text-slate-900">Rp 0</h3>
           <p id="kpiTxCount" class="text-[11px] text-slate-400 mt-1">0 transaksi berhasil</p>
         </div>
 
         <!-- COGS / HPP (Modal) -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-          <div class="flex items-center justify-between text-slate-500 text-xs mb-2">
+        <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-xs mb-1.5">
             <span>Total Modal Barang (HPP)</span>
             <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
               <i class="fa-solid fa-boxes-packing"></i>
             </div>
           </div>
-          <h3 id="kpiHpp" class="text-2xl font-black text-amber-600">Rp 0</h3>
+          <h3 id="kpiHpp" class="text-xl sm:text-2xl font-black text-amber-600">Rp 0</h3>
           <p class="text-[11px] text-slate-400 mt-1">Harga pokok modal barang terjual</p>
         </div>
 
         <!-- Total Expenses (Biaya) -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-          <div class="flex items-center justify-between text-slate-500 text-xs mb-2">
+        <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-xs mb-1.5">
             <span>Biaya Operasional Toko</span>
             <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
               <i class="fa-solid fa-receipt"></i>
             </div>
           </div>
-          <h3 id="kpiExpenses" class="text-2xl font-black text-rose-600">Rp 0</h3>
+          <h3 id="kpiExpenses" class="text-xl sm:text-2xl font-black text-rose-600">Rp 0</h3>
           <p class="text-[11px] text-slate-400 mt-1">Listrik, Wifi, Gaji, dll</p>
         </div>
 
         <!-- Net Profit (Laba Bersih) -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-          <div class="flex items-center justify-between text-slate-500 text-xs mb-2">
+        <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-xs mb-1.5">
             <span>Laba Bersih (Net Profit)</span>
             <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <i class="fa-solid fa-sack-dollar"></i>
             </div>
           </div>
-          <h3 id="kpiNetProfit" class="text-2xl font-black text-emerald-600">Rp 0</h3>
+          <h3 id="kpiNetProfit" class="text-xl sm:text-2xl font-black text-emerald-600">Rp 0</h3>
           <p id="kpiMargin" class="text-[11px] text-slate-400 mt-1">Margin: 0%</p>
         </div>
       </div>
 
       <!-- Financial Statement Detail Table -->
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-        <h3 class="font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center justify-between">
+      <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-xs border border-slate-200 space-y-4">
+        <h3 class="font-bold text-sm sm:text-base text-slate-900 border-b border-slate-100 pb-3 flex flex-wrap items-center justify-between gap-2">
           <span>Rincian Laporan Laba Rugi</span>
           <span id="plPeriodTitle" class="text-xs text-indigo-600 font-semibold bg-indigo-50 px-2.5 py-1 rounded">Bulan Berjalan</span>
         </h3>
 
-        <div class="space-y-3 text-sm">
+        <div class="space-y-2.5 text-xs sm:text-sm">
           <!-- 1. Pendapatan -->
-          <div class="flex justify-between items-center py-2 border-b border-slate-100">
+          <div class="flex justify-between items-center py-2 border-b border-slate-100 gap-2">
             <span class="font-semibold text-slate-800">1. Total Pendapatan Penjualan (Gross Sales)</span>
-            <span id="plRowGrossSales" class="font-bold text-slate-900">Rp 0</span>
+            <span id="plRowGrossSales" class="font-bold text-slate-900 shrink-0">Rp 0</span>
           </div>
-          <div class="flex justify-between items-center py-1 pl-4 text-xs text-slate-500">
+          <div class="flex justify-between items-center py-1 pl-3 sm:pl-4 text-xs text-slate-500 gap-2">
             <span>Potongan / Diskon Penjualan</span>
-            <span id="plRowDiscounts" class="text-red-500">(Rp 0)</span>
+            <span id="plRowDiscounts" class="text-red-500 shrink-0">(Rp 0)</span>
           </div>
-          <div class="flex justify-between items-center py-2 bg-slate-50 px-3 rounded-lg font-bold text-slate-800">
+          <div class="flex justify-between items-center py-2 bg-slate-50 px-3 rounded-lg font-bold text-slate-800 gap-2">
             <span>Pendapatan Bersih Penjualan</span>
-            <span id="plRowNetSales">Rp 0</span>
+            <span id="plRowNetSales" class="shrink-0">Rp 0</span>
           </div>
 
           <!-- 2. HPP & Laba Kotor -->
-          <div class="flex justify-between items-center py-2 border-b border-slate-100">
+          <div class="flex justify-between items-center py-2 border-b border-slate-100 gap-2">
             <span class="font-semibold text-slate-800">2. Harga Pokok Penjualan (HPP / Modal Barang)</span>
-            <span id="plRowHpp" class="font-bold text-amber-600">(Rp 0)</span>
+            <span id="plRowHpp" class="font-bold text-amber-600 shrink-0">(Rp 0)</span>
           </div>
-          <div class="flex justify-between items-center py-2 bg-indigo-50/60 text-indigo-900 px-3 rounded-lg font-bold">
+          <div class="flex justify-between items-center py-2 bg-indigo-50/60 text-indigo-900 px-3 rounded-lg font-bold gap-2">
             <span>LABA KOTOR (Gross Profit)</span>
-            <span id="plRowGrossProfit">Rp 0</span>
+            <span id="plRowGrossProfit" class="shrink-0">Rp 0</span>
           </div>
 
           <!-- 3. Rincian Beban Operasional -->
-          <div class="pt-3">
+          <div class="pt-2">
             <span class="font-semibold text-slate-800">3. Beban & Biaya Operasional:</span>
-            <div id="plExpenseBreakdown" class="mt-2 pl-4 space-y-1.5 text-xs text-slate-600">
+            <div id="plExpenseBreakdown" class="mt-2 pl-3 sm:pl-4 space-y-1.5 text-xs text-slate-600">
               <!-- Injected by JS: Listrik, Gaji, Wifi, dll -->
             </div>
-            <div class="flex justify-between items-center py-2 mt-2 bg-rose-50/50 text-rose-900 px-3 rounded-lg font-semibold text-xs">
+            <div class="flex justify-between items-center py-2 mt-2 bg-rose-50/50 text-rose-900 px-3 rounded-lg font-semibold text-xs gap-2">
               <span>Total Beban Operasional</span>
-              <span id="plRowTotalExpenses" class="font-bold text-rose-600">(Rp 0)</span>
+              <span id="plRowTotalExpenses" class="font-bold text-rose-600 shrink-0">(Rp 0)</span>
             </div>
           </div>
 
           <!-- 4. Laba Bersih Final -->
-          <div class="flex justify-between items-center py-3 bg-emerald-600 text-white px-4 rounded-xl font-black text-base shadow-md">
+          <div class="flex justify-between items-center py-3 bg-emerald-600 text-white px-4 rounded-xl font-black text-sm sm:text-base shadow-md gap-2">
             <span>LABA BERSIH AKHIR (Net Income)</span>
-            <span id="plRowFinalNetProfit">Rp 0</span>
+            <span id="plRowFinalNetProfit" class="shrink-0">Rp 0</span>
           </div>
         </div>
       </div>
     </section>
 
     <!-- ==================== TAB 5: MASTER PRODUK & STOK (ADMIN ONLY) ==================== -->
-    <section id="view-products" class="tab-view hidden space-y-6">
+    <section id="view-products" class="tab-view hidden space-y-5">
       
       <!-- Top Action Bar -->
-      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+      <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
         <div>
-          <h2 class="text-lg font-bold text-slate-900">Master Data Produk & Satuan Bertingkat</h2>
+          <h2 class="text-base sm:text-lg font-bold text-slate-900">Master Data Produk & Satuan Bertingkat</h2>
           <p class="text-xs text-slate-500">Atur barang ecer dan grosir (Contoh: Rokok per Bal, Slop, Bungkus, dan Batang)</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <!-- Toggle Quick Edit Mode for All Products -->
-          <button id="btnToggleQuickStock" onclick="app.toggleQuickStockEdit()" class="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold rounded-xl border border-amber-300 shadow-sm flex items-center gap-1.5 transition" title="Buka kolom edit stok untuk semua barang sekaligus">
+          <button id="btnToggleQuickStock" onclick="app.toggleQuickStockEdit()" class="flex-1 sm:flex-initial justify-center px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold rounded-xl border border-amber-300 shadow-xs flex items-center gap-1.5 transition" title="Buka kolom edit stok untuk semua barang sekaligus">
             <i class="fa-solid fa-pen-to-square" id="iconQuickStock"></i>
             <span id="textQuickStock">Ubah Stok Semua Barang</span>
           </button>
           <!-- Save All Quick Stock (hidden until quick mode active) -->
-          <button id="btnSaveAllQuickStock" onclick="app.saveAllQuickStock()" class="hidden px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition">
+          <button id="btnSaveAllQuickStock" onclick="app.saveAllQuickStock()" class="hidden flex-1 sm:flex-initial justify-center px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition">
             <i class="fa-solid fa-check-double"></i>
             <span>Simpan Semua Stok</span>
           </button>
-          <button onclick="app.openProductModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition">
+          <button onclick="app.openProductModal()" class="flex-1 sm:flex-initial justify-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition">
             <i class="fa-solid fa-plus"></i>
             <span>Tambah Barang Baru</span>
           </button>
@@ -541,10 +585,10 @@
       </div>
 
       <!-- Product List Table -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
-            <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-200">
+            <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-200 whitespace-nowrap">
               <tr>
                 <th class="py-3 px-4">Nama Barang & Kategori</th>
                 <th class="py-3 px-4">Satuan Dasar & Stok</th>
@@ -562,17 +606,17 @@
     </section>
  
     <!-- ==================== TAB 6: KELOLA PEGAWAI (ADMIN ONLY) ==================== -->
-    <section id="view-employees" class="tab-view hidden space-y-6">
-      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+    <section id="view-employees" class="tab-view hidden space-y-5">
+      <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
         <div>
-          <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
             <i class="fa-solid fa-users-gear text-indigo-600"></i>
             <span>Kelola Akun Pegawai & User ID</span>
           </h2>
           <p class="text-xs text-slate-500">Buat User ID dan PIN khusus untuk setiap staf kasir yang melayani di toko</p>
         </div>
         <div>
-          <button onclick="app.openEmployeeModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition">
+          <button onclick="app.openEmployeeModal()" class="w-full sm:w-auto justify-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition">
             <i class="fa-solid fa-user-plus"></i>
             <span>Tambah Pegawai Baru</span>
           </button>
@@ -580,9 +624,9 @@
       </div>
 
       <!-- Employee List Table -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs">
+          <table class="w-full text-left text-xs whitespace-nowrap">
             <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-200">
               <tr>
                 <th class="py-3 px-4">User ID</th>
@@ -602,12 +646,12 @@
     </section>
 
     <!-- ==================== TAB 7: PENGATURAN (ADMIN ONLY) ==================== -->
-    <section id="view-settings" class="tab-view hidden space-y-6">
+    <section id="view-settings" class="tab-view hidden space-y-5">
       
       <!-- Database & Sync Settings -->
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-3xl space-y-6">
+      <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-xs border border-slate-200 max-w-3xl space-y-6">
         <div>
-          <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
             <i class="fa-solid fa-cloud-arrow-up text-indigo-600"></i>
             <span>Pengaturan Sinkronisasi Google Sheets</span>
           </h2>
@@ -643,12 +687,12 @@
             <p class="text-[11px] text-slate-400 mt-1">PIN ini digunakan untuk membuka menu Laba Rugi, Master Barang, dan Pengaturan.</p>
           </div>
 
-          <div class="pt-4 flex items-center gap-3">
-            <button onclick="app.saveSettings()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition">
-              <i class="fa-solid fa-floppy-disk mr-1"></i>Simpan Pengaturan
+          <div class="pt-2 flex flex-wrap items-center gap-2.5">
+            <button onclick="app.saveSettings()" class="flex-1 sm:flex-initial justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition flex items-center">
+              <i class="fa-solid fa-floppy-disk mr-1.5"></i>Simpan Pengaturan
             </button>
-            <button onclick="app.testCloudConnection()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition">
-              <i class="fa-solid fa-vial mr-1"></i>Tes Koneksi Spreadsheet
+            <button onclick="app.testCloudConnection()" class="flex-1 sm:flex-initial justify-center px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition flex items-center">
+              <i class="fa-solid fa-vial mr-1.5"></i>Tes Koneksi Spreadsheet
             </button>
           </div>
         </div>
