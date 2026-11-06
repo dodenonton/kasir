@@ -36,19 +36,9 @@
 
         <!-- Active Cashier & Shift Switcher -->
         <div class="flex items-center space-x-2 sm:space-x-3">
-          <!-- Button Pegawai Kasir & Shift -->
-          <div class="flex items-center bg-indigo-50 border border-indigo-200 rounded-lg shadow-xs overflow-hidden">
-            <button onclick="app.openEmployeeLoginModal()" class="flex items-center space-x-1.5 px-2.5 py-1.5 hover:bg-indigo-100 text-indigo-900 text-xs font-semibold transition active:scale-95" title="Login / Ganti Petugas Kasir">
-              <i class="fa-solid fa-id-badge text-indigo-600"></i>
-              <span id="headerEmployeeName" class="max-w-[110px] truncate">Budi Santoso</span>
-              <span class="text-indigo-300">•</span>
-              <span id="headerCashierNumber">Kasir 01</span>
-              <span class="text-indigo-300">•</span>
-              <span id="headerShiftBadge" class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">Shift 1</span>
-            </button>
-            <button onclick="app.logoutCashier()" class="px-2 py-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border-l border-indigo-200 transition" title="Logout / Keluar Petugas Kasir">
-              <i class="fa-solid fa-power-off text-xs"></i>
-            </button>
+          <!-- Dynamic Cashier Status (Login Dulu vs Profil Kasir Aktif) -->
+          <div id="cashierStatusContainer">
+            <!-- Injected dynamically by app.updateCashierShiftUI() -->
           </div>
 
           <!-- Refresh / Segarkan Button (di sebelah kiri Online) -->
@@ -69,9 +59,9 @@
             <span>Antrean: <b id="pendingCountBadge">0</b></span>
           </button>
 
-          <!-- Role Toggle Button -->
+          <!-- Role Toggle Button (Opens Login Choice Modal: Admin atau Pegawai) -->
           <div class="relative">
-            <button id="roleToggleBtn" onclick="app.openRoleModal()" class="flex items-center space-x-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition">
+            <button id="roleToggleBtn" onclick="app.openRoleChoiceModal()" class="flex items-center space-x-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition">
               <i class="fa-solid fa-user-shield text-slate-500" id="roleIcon"></i>
               <span id="roleButtonText">Login Admin</span>
             </button>
@@ -171,22 +161,9 @@
             </select>
           </div>
 
-          <!-- Active Cashier & Shift Bar with Closing Shift Action -->
-          <div class="px-4 py-1.5 bg-slate-100/70 border-b border-slate-200/60 flex items-center justify-between text-[11px] text-slate-600">
-            <div class="flex items-center gap-1.5 truncate">
-              <i class="fa-solid fa-user-tag text-indigo-600 text-xs"></i>
-              <span class="truncate">Petugas: <b id="cartCashierText" class="text-slate-800">Kasir 01 (Pegawai 1)</b></span>
-              <span class="text-slate-300">•</span>
-              <span id="cartShiftText" class="font-bold text-indigo-700">Shift 1</span>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <button onclick="app.openShiftReportModal()" class="text-[10px] text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold transition" title="Lihat rekap penjualan & uang di laci shift ini">
-                <i class="fa-solid fa-calculator mr-1"></i>Rekap Shift
-              </button>
-              <button onclick="app.openCashierShiftModal()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline" title="Ganti kasir / shift">
-                Ganti
-              </button>
-            </div>
+          <!-- Dynamic Active Cashier & Shift Bar with Closing Shift Action -->
+          <div id="cartCashierBarContainer">
+            <!-- Injected dynamically by app.updateCashierShiftUI() -->
           </div>
 
           <!-- Cart Item List -->
@@ -719,6 +696,58 @@
   </main>
 
   <!-- ==================== MODALS ==================== -->
+
+  <!-- 0. MODAL PILIHAN LOGIN (POPUP PILIH LOGIN ADMIN ATAU PEGAWAI) -->
+  <div id="loginChoiceModal" class="modal-overlay hidden">
+    <div class="modal-card max-w-sm w-full p-6 text-slate-800">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg shadow-xs">
+            <i class="fa-solid fa-users-gear"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-slate-900 leading-tight">Pilih Akses Login</h3>
+            <p class="text-xs text-slate-500">Pilih masuk sebagai Admin atau Pegawai Kasir</p>
+          </div>
+        </div>
+        <button onclick="app.closeLoginChoiceModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+      </div>
+
+      <div class="py-4 space-y-3">
+        <!-- Opsi 1: Login Admin -->
+        <button onclick="app.chooseLoginRole('admin')" class="w-full p-3.5 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 border-2 border-purple-200 hover:border-purple-400 rounded-2xl flex items-center justify-between text-left transition group shadow-xs">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-purple-600 text-white flex items-center justify-center text-lg shadow-sm group-hover:scale-105 transition shrink-0">
+              <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <div>
+              <span class="block font-bold text-sm text-purple-950">Login Admin (Pemilik)</span>
+              <span class="block text-[11px] text-purple-700 font-medium leading-tight mt-0.5">Laba rugi, ubah stok manual, & kelola pegawai</span>
+            </div>
+          </div>
+          <i class="fa-solid fa-chevron-right text-purple-400 group-hover:translate-x-1 transition text-xs shrink-0"></i>
+        </button>
+
+        <!-- Opsi 2: Login Pegawai / Kasir -->
+        <button onclick="app.chooseLoginRole('cashier')" class="w-full p-3.5 bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 border-2 border-emerald-200 hover:border-emerald-400 rounded-2xl flex items-center justify-between text-left transition group shadow-xs">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg shadow-sm group-hover:scale-105 transition shrink-0">
+              <i class="fa-solid fa-cash-register"></i>
+            </div>
+            <div>
+              <span class="block font-bold text-sm text-emerald-950">Login Pegawai (Kasir)</span>
+              <span class="block text-[11px] text-emerald-700 font-medium leading-tight mt-0.5">Mulai transaksi kasir & rekap tutup shift</span>
+            </div>
+          </div>
+          <i class="fa-solid fa-chevron-right text-emerald-400 group-hover:translate-x-1 transition text-xs shrink-0"></i>
+        </button>
+      </div>
+
+      <div class="pt-2 border-t border-slate-100 flex justify-end">
+        <button type="button" onclick="app.closeLoginChoiceModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition">Batal</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 1. PIN MODAL (ADMIN AUTHENTICATION) -->
   <div id="pinModal" class="modal-overlay hidden">

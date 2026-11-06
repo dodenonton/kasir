@@ -138,6 +138,7 @@ class KasirApp {
     this.stockAdjustType = "add";
     this.cancelledInvoices = JSON.parse(localStorage.getItem("toko_cancelled_invoices") || "[]");
     this.activeCancelTx = null;
+    this.isCashierLoggedIn = false;
     
     // Load persisted state from LocalStorage
     this.loadState();
@@ -159,6 +160,13 @@ class KasirApp {
     this.renderProductMasterTable();
     this.renderEmployeeTable();
     this.updatePendingCount();
+
+    // Auto-prompt login kasir if not logged in yet
+    if (!this.isCashierLoggedIn && this.currentRole !== 'admin') {
+      setTimeout(() => {
+        this.openEmployeeLoginModal();
+      }, 500);
+    }
 
     // Auto-sync if online on start
     if (navigator.onLine && this.settings.gasUrl) {
@@ -209,7 +217,8 @@ class KasirApp {
     const savedUsers = localStorage.getItem("toko_users");
     this.users = savedUsers ? JSON.parse(savedUsers) : DEFAULT_USERS;
 
-    // 6. Active Cashier Session (Nomor Kasir & Shift Pegawai)
+    // 6. Active Cashier Session & Login Status (Nomor Kasir & Shift Pegawai)
+    this.isCashierLoggedIn = localStorage.getItem("toko_cashier_logged_in") === "true";
     const savedSession = localStorage.getItem("toko_current_session");
     this.cashierSession = savedSession ? JSON.parse(savedSession) : {
       userId: this.users[0] ? this.users[0].userId : "KASIR1",
@@ -223,7 +232,9 @@ class KasirApp {
     if (!savedProducts) this.saveProducts();
     if (!savedExpenses) this.saveExpenses();
     if (!savedUsers) this.saveUsers();
-    if (!savedSession) this.saveCashierSession();
+    if (!savedSession) {
+      localStorage.setItem("toko_current_session", JSON.stringify(this.cashierSession));
+    }
   }
 
   saveUsers() {
@@ -412,33 +423,59 @@ class KasirApp {
   }
 
   // ==================== ROLE SWITCHING (PEGAWAI KASIR VS ADMIN) ====================
-  openRoleModal() {
+  openRoleChoiceModal() {
     if (this.currentRole === "admin") {
-      // If currently admin, switch back to cashier without password
+      // If currently admin, switch back to cashier mode
       this.currentRole = "cashier";
       this.updateRoleUI();
       this.switchTab("pos");
       this.showToast("Beralih ke Halaman Kasir (Pegawai)", "info");
-    } else {
-      // Need PIN to become admin
-      const modal = document.getElementById("pinModal");
-      const pinField = document.getElementById("inputPinField");
-      const err = document.getElementById("pinErrorMsg");
-      err.classList.add("hidden");
-      pinField.value = "";
-      modal.classList.remove("hidden");
-      setTimeout(() => pinField.focus(), 100);
+      return;
+    }
+    const modal = document.getElementById("loginChoiceModal");
+    if (modal) modal.classList.remove("hidden");
+  }
+
+  closeLoginChoiceModal() {
+    const modal = document.getElementById("loginChoiceModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  chooseLoginRole(role) {
+    this.closeLoginChoiceModal();
+    if (role === "admin") {
+      this.openAdminPinModal();
+    } else if (role === "cashier") {
+      this.openEmployeeLoginModal();
     }
   }
 
+  openAdminPinModal() {
+    const modal = document.getElementById("pinModal");
+    const pinField = document.getElementById("inputPinField");
+    const err = document.getElementById("pinErrorMsg");
+    if (err) err.classList.add("hidden");
+    if (pinField) pinField.value = "";
+    if (modal) modal.classList.remove("hidden");
+    setTimeout(() => {
+      if (pinField) pinField.focus();
+    }, 100);
+  }
+
+  openRoleModal() {
+    // Legacy support / alias
+    this.openRoleChoiceModal();
+  }
+
   closeRoleModal() {
-    document.getElementById("pinModal").classList.add("hidden");
+    const modal = document.getElementById("pinModal");
+    if (modal) modal.classList.add("hidden");
   }
 
   verifyPin(e) {
     if (e) e.preventDefault();
     const pinField = document.getElementById("inputPinField");
-    const enteredPin = pinField.value.trim();
+    const enteredPin = pinField ? pinField.value.trim() : "";
 
     if (enteredPin === this.settings.adminPin) {
       this.currentRole = "admin";
@@ -447,9 +484,11 @@ class KasirApp {
       this.showToast("Login Admin Berhasil! Akses Laba Rugi terbuka.", "success");
     } else {
       const err = document.getElementById("pinErrorMsg");
-      err.classList.remove("hidden");
-      pinField.value = "";
-      pinField.focus();
+      if (err) err.classList.remove("hidden");
+      if (pinField) {
+        pinField.value = "";
+        pinField.focus();
+      }
     }
   }
 
@@ -460,34 +499,98 @@ class KasirApp {
     const adminTabs = document.querySelectorAll(".admin-only");
 
     if (this.currentRole === "admin") {
-      roleBadge.textContent = "Admin";
-      roleBadge.className = "font-bold text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded text-[11px] border border-purple-200";
-      roleBtnText.textContent = "Mode Kasir";
-      roleIcon.className = "fa-solid fa-right-from-bracket text-purple-600";
+      if (roleBadge) {
+        roleBadge.textContent = "Admin";
+        roleBadge.className = "font-bold text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded text-[11px] border border-purple-200";
+      }
+      if (roleBtnText) roleBtnText.textContent = "Mode Kasir";
+      if (roleIcon) roleIcon.className = "fa-solid fa-right-from-bracket text-purple-600";
       adminTabs.forEach(el => el.classList.remove("hidden"));
     } else {
-      roleBadge.textContent = "Kasir (Pegawai)";
-      roleBadge.className = "font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] border border-emerald-200";
-      roleBtnText.textContent = "Login Admin";
-      roleIcon.className = "fa-solid fa-user-shield text-slate-500";
+      if (roleBadge) {
+        roleBadge.textContent = "Kasir (Pegawai)";
+        roleBadge.className = "font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] border border-emerald-200";
+      }
+      if (roleBtnText) roleBtnText.textContent = "Login Admin";
+      if (roleIcon) roleIcon.className = "fa-solid fa-user-shield text-slate-500";
       adminTabs.forEach(el => el.classList.add("hidden"));
     }
   }
 
   // ==================== CASHIER USER LOGIN & SHIFT MANAGEMENT ====================
   updateCashierShiftUI() {
-    const headerNo = document.getElementById("headerCashierNumber");
-    const headerEmp = document.getElementById("headerEmployeeName");
-    const headerShift = document.getElementById("headerShiftBadge");
-    const cartCashier = document.getElementById("cartCashierText");
-    const cartShift = document.getElementById("cartShiftText");
+    const cashierContainer = document.getElementById("cashierStatusContainer");
+    const cartCashierBar = document.getElementById("cartCashierBarContainer");
 
-    if (headerNo) headerNo.textContent = this.cashierSession.cashierNumber || "Kasir 01";
-    if (headerEmp) headerEmp.textContent = this.cashierSession.employeeName || "Pegawai 1";
-    if (headerShift) headerShift.textContent = (this.cashierSession.shift || "Shift 1").split(" ")[0];
+    if (this.isCashierLoggedIn) {
+      // --- HEADER: ACTIVE CASHIER BADGE ---
+      if (cashierContainer) {
+        const shortShift = (this.cashierSession.shift || "Shift 1").split(" ")[0];
+        cashierContainer.innerHTML = `
+          <div class="flex items-center bg-indigo-50 border border-indigo-200 rounded-lg shadow-xs overflow-hidden">
+            <button onclick="app.openEmployeeLoginModal()" class="flex items-center space-x-1.5 px-2.5 py-1.5 hover:bg-indigo-100 text-indigo-900 text-xs font-semibold transition active:scale-95" title="Ganti Petugas Kasir / Shift">
+              <i class="fa-solid fa-id-badge text-indigo-600"></i>
+              <span class="max-w-[110px] truncate">${this.cashierSession.employeeName || 'Pegawai 1'}</span>
+              <span class="text-indigo-300">•</span>
+              <span>${this.cashierSession.cashierNumber || 'Kasir 01'}</span>
+              <span class="text-indigo-300">•</span>
+              <span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">${shortShift}</span>
+            </button>
+            <button onclick="app.logoutCashier()" class="px-2 py-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border-l border-indigo-200 transition" title="Logout / Keluar Petugas Kasir">
+              <i class="fa-solid fa-power-off text-xs"></i>
+            </button>
+          </div>
+        `;
+      }
 
-    if (cartCashier) cartCashier.textContent = `${this.cashierSession.cashierNumber || 'Kasir 01'} (${this.cashierSession.employeeName || 'Pegawai 1'})`;
-    if (cartShift) cartShift.textContent = this.cashierSession.shift || "Shift 1 (Pagi)";
+      // --- CART: ACTIVE CASHIER BAR ---
+      if (cartCashierBar) {
+        cartCashierBar.innerHTML = `
+          <div class="px-4 py-1.5 bg-slate-100/70 border-b border-slate-200/60 flex items-center justify-between text-[11px] text-slate-600">
+            <div class="flex items-center gap-1.5 truncate">
+              <i class="fa-solid fa-user-tag text-indigo-600 text-xs"></i>
+              <span class="truncate">Petugas: <b class="text-slate-800">${this.cashierSession.cashierNumber || 'Kasir 01'} (${this.cashierSession.employeeName || 'Pegawai 1'})</b></span>
+              <span class="text-slate-300">•</span>
+              <span class="font-bold text-indigo-700">${this.cashierSession.shift || 'Shift 1'}</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button onclick="app.openShiftReportModal()" class="text-[10px] text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold transition" title="Lihat rekap penjualan & uang di laci shift ini">
+                <i class="fa-solid fa-calculator mr-1"></i>Rekap Shift
+              </button>
+              <button onclick="app.openEmployeeLoginModal()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline" title="Ganti kasir / shift">
+                Ganti
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    } else {
+      // --- HEADER: LOGIN PROMPT (BELUM LOGIN) ---
+      if (cashierContainer) {
+        cashierContainer.innerHTML = `
+          <button onclick="app.openEmployeeLoginModal()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg text-xs font-bold shadow-sm transition active:scale-95 animate-pulse" title="Klik untuk Login Kasir Sebelum Jualan">
+            <i class="fa-solid fa-lock text-amber-100"></i>
+            <span>Login Kasir Dulu</span>
+          </button>
+        `;
+      }
+
+      // --- CART: CASHIER WARNING (BELUM LOGIN) ---
+      if (cartCashierBar) {
+        cartCashierBar.innerHTML = `
+          <div class="px-4 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between text-[11px] text-amber-900">
+            <div class="flex items-center gap-1.5">
+              <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+              <span class="font-bold">Kasir Belum Login:</span>
+              <span>Login dulu sebelum melayani transaksi</span>
+            </div>
+            <button onclick="app.openEmployeeLoginModal()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-[10px] shadow-xs transition">
+              Login Sekarang
+            </button>
+          </div>
+        `;
+      }
+    }
   }
 
   openEmployeeLoginModal() {
@@ -498,23 +601,27 @@ class KasirApp {
     const shiftSelect = document.getElementById("empLoginShift");
     const cashierSelect = document.getElementById("empLoginCashierNo");
 
-    err.classList.add("hidden");
-    pinInput.value = "";
+    if (err) err.classList.add("hidden");
+    if (pinInput) pinInput.value = "";
 
     // Populate active users
     const activeUsers = this.users.filter(u => u.status !== "inactive");
-    select.innerHTML = activeUsers.map(u => `
-      <option value="${u.userId}" ${u.userId === this.cashierSession.userId ? 'selected' : ''}>
-        ${u.name} (${u.userId}) - ${u.assignedCashier || 'Bebas'}
-      </option>
-    `).join("");
+    if (select) {
+      select.innerHTML = activeUsers.map(u => `
+        <option value="${u.userId}" ${u.userId === this.cashierSession.userId ? 'selected' : ''}>
+          ${u.name} (${u.userId}) - ${u.assignedCashier || 'Bebas'}
+        </option>
+      `).join("");
+    }
 
     if (shiftSelect) shiftSelect.value = this.cashierSession.shift || "Shift 1 (Pagi)";
     if (cashierSelect) cashierSelect.value = this.cashierSession.cashierNumber || "Kasir 01";
 
     this.onEmpLoginSelectChange();
-    modal.classList.remove("hidden");
-    setTimeout(() => pinInput.focus(), 100);
+    if (modal) modal.classList.remove("hidden");
+    setTimeout(() => {
+      if (pinInput) pinInput.focus();
+    }, 100);
   }
 
   closeEmployeeLoginModal() {
@@ -541,14 +648,16 @@ class KasirApp {
     const shiftSelect = document.getElementById("empLoginShift");
     const err = document.getElementById("empLoginErrorMsg");
 
-    const userId = select.value;
-    const enteredPin = pinInput.value.trim();
+    const userId = select ? select.value : "";
+    const enteredPin = pinInput ? pinInput.value.trim() : "";
 
     const user = this.users.find(u => u.userId === userId && u.status !== "inactive");
     if (!user || user.pin !== enteredPin) {
-      err.classList.remove("hidden");
-      pinInput.value = "";
-      pinInput.focus();
+      if (err) err.classList.remove("hidden");
+      if (pinInput) {
+        pinInput.value = "";
+        pinInput.focus();
+      }
       return;
     }
 
@@ -557,18 +666,23 @@ class KasirApp {
     this.cashierSession = {
       userId: user.userId,
       employeeName: user.name,
-      cashierNumber: cashierSelect.value || user.assignedCashier || "Kasir 01",
-      shift: shiftSelect.value,
+      cashierNumber: (cashierSelect ? cashierSelect.value : "") || user.assignedCashier || "Kasir 01",
+      shift: shiftSelect ? shiftSelect.value : "Shift 1 (Pagi)",
       shiftStart: isDifferentUser ? new Date().toISOString() : (this.cashierSession.shiftStart || new Date().toISOString())
     };
 
+    this.isCashierLoggedIn = true;
+    localStorage.setItem("toko_cashier_logged_in", "true");
     this.saveCashierSession();
     this.closeEmployeeLoginModal();
     this.showToast(`Login Kasir Berhasil! Selamat bertugas, ${user.name} (${this.cashierSession.cashierNumber}).`, "success");
   }
 
   logoutCashier() {
-    if (confirm(`Petugas ${this.cashierSession.employeeName} ingin keluar?\n\nKlik OK untuk melihat Rekap Tutup Shift sebelum berganti petugas, atau Cancel untuk tetap di aplikasi.`)) {
+    if (confirm(`Petugas ${this.cashierSession.employeeName} ingin keluar dari sesi kasir?\n\nKlik OK untuk logout dan melihat Rekap Tutup Shift.`)) {
+      this.isCashierLoggedIn = false;
+      localStorage.removeItem("toko_cashier_logged_in");
+      this.updateCashierShiftUI();
       this.openShiftReportModal();
     }
   }
@@ -896,9 +1010,12 @@ class KasirApp {
   startNewShift() {
     if (!confirm("Tutup shift saat ini dan mulai sesi shift baru? Jam awal shift akan direset ke sekarang.")) return;
     this.cashierSession.shiftStart = new Date().toISOString();
+    this.isCashierLoggedIn = false;
+    localStorage.removeItem("toko_cashier_logged_in");
     this.saveCashierSession();
+    this.updateCashierShiftUI();
     this.closeShiftReportModal();
-    this.showToast("Shift baru dimulai! Silakan login untuk petugas baru.", "success");
+    this.showToast("Shift ditutup! Silakan login untuk petugas kasir berikutnya.", "success");
     this.openEmployeeLoginModal();
   }
 
@@ -907,7 +1024,7 @@ class KasirApp {
     // Security check: if cashier tries to access admin tabs, reject
     if (["profitloss", "products", "employees", "settings"].includes(tabName) && this.currentRole !== "admin") {
       this.showToast("Menu ini hanya dapat diakses oleh Admin!", "warning");
-      this.openRoleModal();
+      this.openAdminPinModal();
       return;
     }
 
@@ -1064,6 +1181,12 @@ class KasirApp {
   }
 
   addToCart(productId, unitName) {
+    if (!this.isCashierLoggedIn && this.currentRole !== 'admin') {
+      this.showToast("Silakan Login Kasir terlebih dahulu sebelum melayani penjualan!", "warning");
+      this.openEmployeeLoginModal();
+      return;
+    }
+
     const product = this.products.find(p => p.id === productId);
     if (!product) return;
 
@@ -1238,6 +1361,12 @@ class KasirApp {
 
   // ==================== CHECKOUT PROCESS ====================
   processCheckout() {
+    if (!this.isCashierLoggedIn && this.currentRole !== 'admin') {
+      this.showToast("Silakan Login Kasir terlebih dahulu sebelum menyelesaikan transaksi!", "warning");
+      this.openEmployeeLoginModal();
+      return;
+    }
+
     if (this.cart.length === 0) {
       this.showToast("Keranjang belanja masih kosong!", "warning");
       return;
@@ -2370,9 +2499,13 @@ class KasirApp {
       }
       // Esc: Close Modals
       if (e.key === "Escape") {
+        this.closeLoginChoiceModal();
         this.closeRoleModal();
+        this.closeEmployeeLoginModal();
         this.closeProductModal();
         this.closeReceiptModal();
+        this.closeShiftReportModal();
+        this.closeCancelModal();
       }
     });
   }
