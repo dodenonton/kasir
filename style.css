@@ -3,10 +3,22 @@
    Responsive Mobile & Desktop POS Styling
    ========================================================= */
 
-/* Smooth scrolling */
-html {
+/* Prevent horizontal overflow and page drifting outside viewport on mobile and PC */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  position: relative;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
   scroll-behavior: smooth;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
 /* Hide scrollbar for horizontal pill navs on mobile */

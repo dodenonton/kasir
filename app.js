@@ -530,15 +530,15 @@ class KasirApp {
       if (cashierContainer) {
         const shortShift = (this.cashierSession.shift || "Shift 1").split(" ")[0];
         cashierContainer.innerHTML = `
-          <div class="inline-flex items-center h-8 sm:h-9 bg-indigo-50 border border-indigo-200 rounded-lg shadow-2xs overflow-hidden">
-            <button onclick="app.openEmployeeLoginModal()" class="flex items-center space-x-1.5 px-2.5 h-full hover:bg-indigo-100 text-indigo-950 text-[11px] sm:text-xs font-semibold transition active:scale-95" title="Ganti Petugas Kasir / Shift">
-              <i class="fa-solid fa-id-badge text-indigo-600"></i>
-              <span class="max-w-[90px] sm:max-w-[130px] truncate font-bold">${this.cashierSession.employeeName || 'Pegawai 1'}</span>
+          <div class="flex items-center justify-between w-full md:w-auto h-8 sm:h-9 bg-indigo-50 border border-indigo-200 rounded-lg shadow-2xs overflow-hidden max-w-full">
+            <button onclick="app.openEmployeeLoginModal()" class="flex items-center space-x-1.5 px-2.5 h-full hover:bg-indigo-100 text-indigo-950 text-[11px] sm:text-xs font-semibold transition active:scale-95 min-w-0 flex-1 truncate" title="Ganti Petugas Kasir / Shift">
+              <i class="fa-solid fa-id-badge text-indigo-600 shrink-0"></i>
+              <span class="truncate font-bold">${this.cashierSession.employeeName || 'Pegawai 1'}</span>
               <span class="text-indigo-300">•</span>
-              <span class="text-indigo-700">${this.cashierSession.cashierNumber || 'Kasir 01'}</span>
-              <span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">${shortShift}</span>
+              <span class="text-indigo-700 shrink-0">${this.cashierSession.cashierNumber || 'Kasir 01'}</span>
+              <span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shrink-0">${shortShift}</span>
             </button>
-            <button onclick="app.logoutCashier()" class="px-2.5 h-full flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 border-l border-indigo-200 transition" title="Logout / Keluar Petugas Kasir">
+            <button onclick="app.logoutCashier()" class="px-2.5 h-full flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 border-l border-indigo-200 transition shrink-0" title="Logout / Keluar Petugas Kasir">
               <i class="fa-solid fa-power-off text-xs"></i>
             </button>
           </div>
@@ -549,7 +549,7 @@ class KasirApp {
       if (cartCashierBar) {
         cartCashierBar.innerHTML = `
           <div class="px-3.5 py-2 bg-indigo-50/50 border-b border-indigo-100/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
-            <div class="flex items-center gap-1.5 min-w-0">
+            <div class="flex items-center gap-1.5 min-w-0 flex-1">
               <i class="fa-solid fa-user-tag text-indigo-600 text-xs shrink-0"></i>
               <span class="truncate">Petugas: <b class="text-slate-900">${this.cashierSession.cashierNumber || 'Kasir 01'} (${this.cashierSession.employeeName || 'Pegawai 1'})</b></span>
               <span class="text-slate-300">•</span>
@@ -570,7 +570,7 @@ class KasirApp {
       // --- HEADER: LOGIN PROMPT (BELUM LOGIN) ---
       if (cashierContainer) {
         cashierContainer.innerHTML = `
-          <button onclick="app.openEmployeeLoginModal()" class="inline-flex items-center space-x-1.5 h-8 sm:h-9 px-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg text-[11px] sm:text-xs font-bold shadow-xs transition active:scale-95" title="Klik untuk Login Kasir Sebelum Jualan">
+          <button onclick="app.openEmployeeLoginModal()" class="w-full md:w-auto flex items-center justify-center space-x-1.5 h-8 sm:h-9 px-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg text-[11px] sm:text-xs font-bold shadow-xs transition active:scale-95" title="Klik untuk Login Kasir Sebelum Jualan">
             <i class="fa-solid fa-lock text-amber-100"></i>
             <span>Login Kasir Dulu</span>
           </button>
@@ -1142,14 +1142,14 @@ class KasirApp {
         return `
           <button onclick="app.addToCart('${prod.id}', '${unit.unitName}')" 
                   ${disabled ? "disabled" : ""} 
-                  class="flex flex-col justify-between text-left p-2.5 rounded-xl border transition active:scale-[0.98] ${disabled ? 'opacity-45 bg-slate-100 border-slate-200 cursor-not-allowed' : 'bg-slate-50/80 border-slate-200/90 hover:border-indigo-500 hover:bg-indigo-50/60 hover:shadow-2xs'}">
-            <div class="flex items-center justify-between w-full gap-1">
+                  class="flex flex-col justify-between text-left p-2 rounded-xl border transition active:scale-[0.98] min-w-0 w-full overflow-hidden ${disabled ? 'opacity-45 bg-slate-100 border-slate-200 cursor-not-allowed' : 'bg-slate-50/80 border-slate-200/90 hover:border-indigo-500 hover:bg-indigo-50/60 hover:shadow-2xs'}">
+            <div class="flex items-center justify-between w-full gap-1 min-w-0">
               <span class="font-bold text-xs text-slate-900 truncate">${unit.unitName}</span>
-              <span class="text-[10px] text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200/80 font-mono shrink-0">${unit.multiplier > 1 ? 'x' + unit.multiplier : '1 ' + prod.baseUnit}</span>
+              <span class="text-[9px] text-slate-500 bg-white px-1 py-0.5 rounded border border-slate-200/80 font-mono shrink-0">${unit.multiplier > 1 ? 'x' + unit.multiplier : '1 ' + prod.baseUnit}</span>
             </div>
-            <div class="flex items-baseline justify-between w-full mt-1.5 gap-1">
+            <div class="flex items-baseline justify-between w-full mt-1.5 gap-1 min-w-0">
               <span class="text-xs font-black text-indigo-600 truncate">Rp ${unit.sellPrice.toLocaleString("id-ID")}</span>
-              <span class="text-[10px] font-semibold shrink-0 ${disabled ? 'text-rose-500' : 'text-emerald-700'}">
+              <span class="text-[9px] font-semibold shrink-0 ${disabled ? 'text-rose-500' : 'text-emerald-700'}">
                 ${disabled ? 'Habis' : canSellQty.toLocaleString('id-ID')}
               </span>
             </div>
@@ -1158,26 +1158,26 @@ class KasirApp {
       }).join("");
 
       return `
-        <div class="bg-white p-3.5 sm:p-4 rounded-2xl shadow-xs border border-slate-200/90 flex flex-col justify-between hover:border-slate-300 hover:shadow-sm transition">
-          <div>
+        <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-xs border border-slate-200/90 flex flex-col justify-between hover:border-slate-300 hover:shadow-sm transition w-full max-w-full overflow-hidden">
+          <div class="w-full min-w-0">
             <!-- Top Badge Row -->
-            <div class="flex items-center justify-between gap-2 mb-1.5">
-              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">${prod.category}</span>
-              <span class="text-[11px] font-bold px-2 py-0.5 rounded-md shrink-0 ${isOutOfStock ? 'bg-rose-100 text-rose-700' : 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'}">
+            <div class="flex items-center justify-between gap-1.5 mb-1.5 w-full min-w-0">
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 truncate">${prod.category}</span>
+              <span class="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md shrink-0 ${isOutOfStock ? 'bg-rose-100 text-rose-700' : 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'}">
                 ${prod.stock.toLocaleString('id-ID')} ${prod.baseUnit}
               </span>
             </div>
 
             <!-- Product Title -->
-            <h3 class="font-bold text-slate-900 text-sm leading-snug mb-2">${prod.name}</h3>
+            <h3 class="font-bold text-slate-900 text-xs sm:text-sm leading-snug mb-1.5 truncate">${prod.name}</h3>
             
             <!-- Real-time Multi-Unit Breakdown -->
-            <div class="text-[11px] text-slate-600 bg-indigo-50/40 px-2.5 py-1.5 rounded-xl border border-indigo-100/80 mb-3 flex items-start gap-1.5">
+            <div class="text-[10px] sm:text-[11px] text-slate-600 bg-indigo-50/40 px-2.5 py-1.5 rounded-xl border border-indigo-100/80 mb-2.5 flex items-start gap-1.5 w-full min-w-0">
               <i class="fa-solid fa-cubes-stacked text-indigo-500 text-xs mt-0.5 shrink-0"></i>
-              <span class="leading-tight break-words" title="${breakdownText}"><b class="text-slate-700">Stok:</b> ${breakdownText}</span>
+              <span class="leading-tight truncate w-full" title="${breakdownText}"><b class="text-slate-700">Stok:</b> ${breakdownText}</span>
             </div>
 
-            <div class="grid grid-cols-2 gap-1.5">
+            <div class="grid grid-cols-2 gap-1.5 w-full min-w-0">
               ${unitButtons}
             </div>
           </div>

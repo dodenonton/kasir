@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Aplikasi Kasir Toko Ecer & Grosir</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -10,72 +10,74 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col pb-16 lg:pb-0">
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col pb-16 lg:pb-0 w-full max-w-full overflow-x-hidden">
 
   <!-- TOP STATUS & HEADER BAR -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-    <div class="max-w-[1440px] mx-auto px-3 sm:px-5 lg:px-6">
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-2xs w-full max-w-full overflow-hidden">
+    <div class="max-w-[1440px] w-full mx-auto px-3 sm:px-5 lg:px-6">
       
       <!-- Top Row: Brand & Action Controls -->
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between py-2.5 gap-2.5">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between py-2 sm:py-2.5 gap-2 w-full">
         
-        <!-- Left: Store Name & Role Badge -->
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
-            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-200 shrink-0">
-              <i class="fa-solid fa-cash-register text-base sm:text-lg"></i>
+        <!-- Row 1: Brand & Right Quick Controls on Mobile -->
+        <div class="flex items-center justify-between w-full md:w-auto min-w-0">
+          <div class="flex items-center space-x-2 sm:space-x-3 min-w-0">
+            <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-200 shrink-0">
+              <i class="fa-solid fa-cash-register text-sm sm:text-lg"></i>
             </div>
             <div class="min-w-0">
-              <h1 id="headerStoreName" class="font-bold text-sm sm:text-lg text-slate-900 leading-tight truncate">Toko Berkah Grosir & Ecer</h1>
-              <div class="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5 flex-wrap">
-                <span class="hidden sm:inline">Sistem Kasir & Laba Rugi</span>
+              <h1 id="headerStoreName" class="font-bold text-sm sm:text-base lg:text-lg text-slate-900 leading-tight truncate">Toko Berkah Grosir & Ecer</h1>
+              <div class="text-[10px] sm:text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                <span class="hidden sm:inline">Sistem Kasir</span>
                 <span class="hidden sm:inline text-slate-300">•</span>
-                <span id="currentRoleBadge" class="font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[10px] sm:text-[11px] border border-emerald-200">
+                <span id="currentRoleBadge" class="font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded text-[10px] sm:text-[11px] border border-emerald-200 shrink-0">
                   Kasir (Pegawai)
                 </span>
               </div>
             </div>
           </div>
 
-          <!-- Mobile-only Quick Online Dot & Role Button -->
+          <!-- Mobile Right Controls (Online Badge, Segarkan & Admin Button) -->
           <div class="flex items-center gap-1.5 md:hidden shrink-0">
-            <button onclick="app.refreshAll()" class="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-300 transition active:scale-95" title="Segarkan data & koneksi">
-              <i class="fa-solid fa-arrows-rotate text-slate-600 text-xs"></i>
+            <!-- Online/Offline Badge Compact Mobile -->
+            <div id="networkStatusBadge" class="flex items-center space-x-1 h-7 px-2 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" id="statusDot"></span>
+              <span id="statusText">Online</span>
+            </div>
+
+            <!-- Role Toggle Button Compact Mobile -->
+            <button id="roleToggleBtn" onclick="app.openRoleChoiceModal()" class="flex items-center space-x-1 h-7 px-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[10px] font-bold shadow-xs transition active:scale-95 shrink-0">
+              <i class="fa-solid fa-user-shield text-indigo-300 text-[10px]" id="roleIcon"></i>
+              <span id="roleButtonText">Admin</span>
+            </button>
+
+            <!-- Refresh Button Compact Mobile -->
+            <button onclick="app.refreshAll()" class="w-7 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-300 transition active:scale-95 shrink-0" title="Segarkan data & koneksi">
+              <i class="fa-solid fa-arrows-rotate text-slate-600 text-[11px]" id="refreshBtnIcon"></i>
             </button>
           </div>
         </div>
 
-        <!-- Right: Active Cashier, Refresh, Online Status & Login Role Button -->
-        <div class="flex flex-wrap items-center justify-between md:justify-end gap-1.5 sm:gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+        <!-- Row 2 on Mobile (Full Width Cashier Status) / Right Side on Desktop -->
+        <div class="w-full md:w-auto flex items-center justify-between md:justify-end gap-1.5 sm:gap-2">
           
           <!-- Dynamic Cashier Status (Login Dulu vs Profil Kasir Aktif) -->
-          <div id="cashierStatusContainer" class="shrink-0">
+          <div id="cashierStatusContainer" class="w-full md:w-auto min-w-0">
             <!-- Injected dynamically by app.updateCashierShiftUI() -->
           </div>
 
-          <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
-            <!-- Refresh / Segarkan Button (Desktop/Tablet) -->
-            <button onclick="app.refreshAll()" class="hidden md:flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition active:scale-95" title="Segarkan data & koneksi">
-              <i class="fa-solid fa-arrows-rotate text-slate-500" id="refreshBtnIcon"></i>
+          <!-- Desktop Only Controls -->
+          <div class="hidden md:flex items-center gap-2 shrink-0">
+            <!-- Refresh / Segarkan Button (Desktop) -->
+            <button onclick="app.refreshAll()" class="flex items-center space-x-1.5 h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition active:scale-95" title="Segarkan data & koneksi">
+              <i class="fa-solid fa-arrows-rotate text-slate-500"></i>
               <span>Segarkan</span>
             </button>
 
-            <!-- Online/Offline Badge -->
-            <div id="networkStatusBadge" class="flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 transition-all duration-300">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" id="statusDot"></span>
-              <span id="statusText">Online</span>
-            </div>
-
             <!-- Pending Sync Counter -->
-            <button id="syncNowBtn" onclick="app.manualSync()" class="relative hidden flex items-center space-x-1 h-8 sm:h-9 px-2.5 bg-amber-50 text-amber-800 border border-amber-300 rounded-lg text-[11px] sm:text-xs font-semibold hover:bg-amber-100 transition" title="Klik untuk sinkronisasi data ke Google Sheets">
+            <button id="syncNowBtn" onclick="app.manualSync()" class="relative hidden flex items-center space-x-1 h-9 px-2.5 bg-amber-50 text-amber-800 border border-amber-300 rounded-lg text-xs font-semibold hover:bg-amber-100 transition" title="Klik untuk sinkronisasi data ke Google Sheets">
               <i class="fa-solid fa-cloud-arrow-up" id="syncIcon"></i>
               <span>Antrean: <b id="pendingCountBadge">0</b></span>
-            </button>
-
-            <!-- Role Toggle Button (Opens Login Choice Modal: Admin atau Pegawai) -->
-            <button id="roleToggleBtn" onclick="app.openRoleChoiceModal()" class="flex items-center space-x-1.5 h-8 sm:h-9 px-2.5 sm:px-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[11px] sm:text-xs font-semibold shadow-xs transition active:scale-95">
-              <i class="fa-solid fa-user-shield text-indigo-300" id="roleIcon"></i>
-              <span id="roleButtonText">Login Admin</span>
             </button>
           </div>
 
