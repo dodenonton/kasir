@@ -36,15 +36,20 @@
 
         <!-- Active Cashier & Shift Switcher -->
         <div class="flex items-center space-x-2 sm:space-x-3">
-          <!-- Button Ganti Kasir & Shift -->
-          <button onclick="app.openCashierShiftModal()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 rounded-lg text-xs font-semibold border border-indigo-200 transition active:scale-95 shadow-xs" title="Atur Nomor Kasir & Shift Pegawai">
-            <i class="fa-solid fa-desktop text-indigo-600"></i>
-            <span id="headerCashierNumber">Kasir 01</span>
-            <span class="text-indigo-300">•</span>
-            <span id="headerEmployeeName" class="max-w-[100px] truncate">Pegawai 1</span>
-            <span class="text-indigo-300">•</span>
-            <span id="headerShiftBadge" class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">Shift 1</span>
-          </button>
+          <!-- Button Pegawai Kasir & Shift -->
+          <div class="flex items-center bg-indigo-50 border border-indigo-200 rounded-lg shadow-xs overflow-hidden">
+            <button onclick="app.openEmployeeLoginModal()" class="flex items-center space-x-1.5 px-2.5 py-1.5 hover:bg-indigo-100 text-indigo-900 text-xs font-semibold transition active:scale-95" title="Login / Ganti Petugas Kasir">
+              <i class="fa-solid fa-id-badge text-indigo-600"></i>
+              <span id="headerEmployeeName" class="max-w-[110px] truncate">Budi Santoso</span>
+              <span class="text-indigo-300">•</span>
+              <span id="headerCashierNumber">Kasir 01</span>
+              <span class="text-indigo-300">•</span>
+              <span id="headerShiftBadge" class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">Shift 1</span>
+            </button>
+            <button onclick="app.logoutCashier()" class="px-2 py-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border-l border-indigo-200 transition" title="Logout / Keluar Petugas Kasir">
+              <i class="fa-solid fa-power-off text-xs"></i>
+            </button>
+          </div>
 
           <!-- Refresh / Segarkan Button (di sebelah kiri Online) -->
           <button onclick="app.refreshAll()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition active:scale-95" title="Segarkan data & koneksi">
@@ -92,6 +97,9 @@
         </button>
         <button onclick="app.switchTab('products')" id="tab-products" class="nav-tab admin-only hidden">
           <i class="fa-solid fa-boxes-stacked mr-1.5"></i>Master Produk & Stok
+        </button>
+        <button onclick="app.switchTab('employees')" id="tab-employees" class="nav-tab admin-only hidden">
+          <i class="fa-solid fa-users-gear mr-1.5"></i>Kelola Pegawai
         </button>
         <button onclick="app.switchTab('settings')" id="tab-settings" class="nav-tab admin-only hidden">
           <i class="fa-solid fa-gear mr-1.5"></i>Pengaturan Database
@@ -575,8 +583,48 @@
         </div>
       </div>
     </section>
+ 
+    <!-- ==================== TAB 6: KELOLA PEGAWAI (ADMIN ONLY) ==================== -->
+    <section id="view-employees" class="tab-view hidden space-y-6">
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <i class="fa-solid fa-users-gear text-indigo-600"></i>
+            <span>Kelola Akun Pegawai & User ID</span>
+          </h2>
+          <p class="text-xs text-slate-500">Buat User ID dan PIN khusus untuk setiap staf kasir yang melayani di toko</p>
+        </div>
+        <div>
+          <button onclick="app.openEmployeeModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Tambah Pegawai Baru</span>
+          </button>
+        </div>
+      </div>
 
-    <!-- ==================== TAB 6: PENGATURAN (ADMIN ONLY) ==================== -->
+      <!-- Employee List Table -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-4">User ID</th>
+                <th class="py-3 px-4">Nama Lengkap Pegawai</th>
+                <th class="py-3 px-4">PIN Akses</th>
+                <th class="py-3 px-4">Kasir Default</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="employeeTableBody" class="divide-y divide-slate-100">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 7: PENGATURAN (ADMIN ONLY) ==================== -->
     <section id="view-settings" class="tab-view hidden space-y-6">
       
       <!-- Database & Sync Settings -->
@@ -924,66 +972,127 @@
     </div>
   </div>
 
-  <!-- 5. MODAL GANTI NOMOR KASIR & SHIFT PEGAWAI -->
-  <div id="cashierShiftModal" class="modal-overlay hidden">
+  <!-- 5. MODAL LOGIN PEGAWAI / KASIR (USER ID & PIN) -->
+  <div id="employeeLoginModal" class="modal-overlay hidden">
     <div class="modal-card max-w-md w-full p-6 text-slate-800">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100">
         <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-xs">
-            <i class="fa-solid fa-desktop text-base"></i>
+          <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-xs">
+            <i class="fa-solid fa-user-lock text-lg"></i>
           </div>
           <div>
-            <h3 class="font-bold text-base text-slate-900 leading-tight">Pengaturan Kasir & Shift</h3>
-            <p class="text-xs text-slate-500">Atur nomor loket dan shift pegawai di perangkat ini</p>
+            <h3 class="font-bold text-base text-slate-900 leading-tight">Login Petugas Kasir</h3>
+            <p class="text-xs text-slate-500">Pilih User ID yang dibuat oleh Admin & masukkan PIN</p>
           </div>
         </div>
-        <button onclick="app.closeCashierShiftModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+        <button onclick="app.closeEmployeeLoginModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
       </div>
 
-      <form onsubmit="app.saveCashierShift(event)" class="py-4 space-y-4 text-xs">
-        <!-- Nomor Kasir -->
+      <form onsubmit="app.processEmployeeLogin(event)" class="py-4 space-y-3.5 text-xs">
+        <!-- Pilihan User ID Pegawai -->
         <div>
-          <label class="block font-semibold text-slate-700 mb-1.5">Nomor / Identitas Kasir:</label>
-          <div class="grid grid-cols-4 gap-1.5 mb-2">
-            <button type="button" onclick="app.setQuickCashierNo('Kasir 01')" class="py-1.5 px-2 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg font-bold text-slate-700 text-center transition">Kasir 01</button>
-            <button type="button" onclick="app.setQuickCashierNo('Kasir 02')" class="py-1.5 px-2 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg font-bold text-slate-700 text-center transition">Kasir 02</button>
-            <button type="button" onclick="app.setQuickCashierNo('Kasir 03')" class="py-1.5 px-2 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg font-bold text-slate-700 text-center transition">Kasir 03</button>
-            <button type="button" onclick="app.setQuickCashierNo('Kasir 04')" class="py-1.5 px-2 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg font-bold text-slate-700 text-center transition">Kasir 04</button>
-          </div>
-          <input type="text" id="inputCashierNumber" required placeholder="Contoh: Kasir 01 / Kasir Toko Depan" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-semibold text-slate-800">
-        </div>
-
-        <!-- Nama Pegawai yang Bertugas -->
-        <div>
-          <label class="block font-semibold text-slate-700 mb-1.5">Nama Pegawai / Kasir Bertugas:</label>
-          <input type="text" id="inputEmployeeName" required placeholder="Contoh: Budi Santoso / Siti Rahma" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-semibold text-slate-800">
-        </div>
-
-        <!-- Pilihan Shift Kerja -->
-        <div>
-          <label class="block font-semibold text-slate-700 mb-1.5">Shift Kerja:</label>
-          <select id="selectShiftName" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-semibold text-slate-800 bg-white">
-            <option value="Shift 1 (Pagi)">Shift 1 (Pagi) [07:00 - 15:00]</option>
-            <option value="Shift 2 (Siang/Sore)">Shift 2 (Siang/Sore) [15:00 - 22:00]</option>
-            <option value="Shift 3 (Malam)">Shift 3 (Malam)</option>
-            <option value="Non-Shift (Full Day)">Non-Shift (Full Day / Seharian)</option>
+          <label class="block font-semibold text-slate-700 mb-1">User ID Pegawai:</label>
+          <select id="empLoginSelect" onchange="app.onEmpLoginSelectChange()" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-semibold text-slate-800 bg-white">
+            <!-- Injected by JS -->
           </select>
+          <input type="text" id="empLoginCustomUserId" placeholder="Atau ketik User ID..." class="hidden mt-1.5 w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-xs">
         </div>
 
-        <!-- Info Waktu Buka Shift -->
-        <div class="bg-indigo-50/70 p-3 rounded-xl border border-indigo-100 flex items-center justify-between">
-          <div class="text-[11px] text-indigo-900">
-            <span>Shift Dimulai:</span>
-            <b id="shiftStartTimeDisplay" class="block font-mono text-xs text-indigo-700">-</b>
+        <!-- PIN Pegawai -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">PIN Login Pegawai:</label>
+          <input type="password" id="empLoginPin" maxlength="6" required placeholder="Masukkan 4-6 digit PIN" class="w-full text-center tracking-widest text-lg font-bold py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          <div id="empLoginErrorMsg" class="hidden text-xs text-rose-500 font-medium mt-1">User ID atau PIN salah!</div>
+        </div>
+
+        <!-- Nomor Kasir / Loket -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Nomor / Loket Kasir:</label>
+            <select id="empLoginCashierNo" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-semibold text-slate-800 bg-white">
+              <option value="Kasir 01">Kasir 01</option>
+              <option value="Kasir 02">Kasir 02</option>
+              <option value="Kasir 03">Kasir 03</option>
+              <option value="Kasir 04">Kasir 04</option>
+              <option value="Kasir Mobile">Kasir Mobile (HP)</option>
+            </select>
           </div>
-          <button type="button" onclick="app.openShiftReportModal()" class="px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-700 font-bold border border-emerald-300 rounded-lg shadow-xs transition">
-            <i class="fa-solid fa-calculator mr-1"></i>Rekap Shift Ini
-          </button>
+
+          <!-- Shift Kerja -->
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Shift Kerja:</label>
+            <select id="empLoginShift" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-semibold text-slate-800 bg-white">
+              <option value="Shift 1 (Pagi)">Shift 1 (Pagi)</option>
+              <option value="Shift 2 (Siang/Sore)">Shift 2 (Siang/Sore)</option>
+              <option value="Shift 3 (Malam)">Shift 3 (Malam)</option>
+              <option value="Non-Shift (Full Day)">Non-Shift</option>
+            </select>
+          </div>
         </div>
 
         <div class="flex gap-2 pt-2">
-          <button type="button" onclick="app.closeCashierShiftModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition">Batal</button>
-          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition">Simpan & Terapkan</button>
+          <button type="button" onclick="app.closeEmployeeLoginModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition">Batal</button>
+          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition">Masuk Kasir</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 5B. MODAL TAMBAH & EDIT PEGAWAI (ADMIN ONLY) -->
+  <div id="employeeModal" class="modal-overlay hidden">
+    <div class="modal-card max-w-md w-full p-6 text-slate-800">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div>
+          <h3 id="employeeModalTitle" class="font-bold text-base text-slate-900 leading-tight">Tambah Pegawai Baru</h3>
+          <p class="text-xs text-slate-500">Buat User ID dan PIN untuk akses kasir</p>
+        </div>
+        <button onclick="app.closeEmployeeModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+      </div>
+
+      <form onsubmit="app.saveEmployee(event)" class="py-4 space-y-3.5 text-xs">
+        <input type="hidden" id="empEditOriginalId">
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">User ID Pegawai (Login ID) *</label>
+          <input type="text" id="empUserIdInput" required placeholder="Contoh: kasir1 / budi01" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono font-bold text-indigo-700 uppercase">
+          <p class="text-[10px] text-slate-400 mt-0.5">Digunakan pegawai saat login kasir (tanpa spasi)</p>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Nama Lengkap Pegawai *</label>
+          <input type="text" id="empFullNameInput" required placeholder="Contoh: Budi Santoso" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-semibold text-slate-800">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">PIN Login (4-6 Digit Angka) *</label>
+          <input type="text" id="empPinInput" maxlength="6" required placeholder="Contoh: 1111" class="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono font-bold text-slate-800">
+          <p class="text-[10px] text-slate-400 mt-0.5">PIN rahasia pegawai untuk membuka loket kasir</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Kasir Default</label>
+            <select id="empDefaultCashier" class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white font-medium">
+              <option value="Kasir 01">Kasir 01</option>
+              <option value="Kasir 02">Kasir 02</option>
+              <option value="Kasir 03">Kasir 03</option>
+              <option value="Kasir 04">Kasir 04</option>
+              <option value="Bebas">Bebas / Pilih Saat Login</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Status Akun</label>
+            <select id="empStatusSelect" class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white font-medium">
+              <option value="active">Aktif (Bisa Login)</option>
+              <option value="inactive">Nonaktif</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="app.closeEmployeeModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition">Batal</button>
+          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition">Simpan Pegawai</button>
         </div>
       </form>
     </div>

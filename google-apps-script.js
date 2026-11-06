@@ -184,6 +184,12 @@ function processSyncBatch(ss, payload) {
     updateProductStockSheet(prodSheet, products);
   }
 
+  // G. Perbarui Data Akun Pegawai
+  var users = payload.users || [];
+  if (users.length > 0) {
+    updateUsersSheet(ss.getSheetByName("Pegawai_User"), users);
+  }
+
   return {
     syncedTransactions: txRows.length,
     syncedExpenses: expRows.length
@@ -194,6 +200,7 @@ function processSyncBatch(ss, payload) {
  * Update lembar data stok produk
  */
 function updateProductStockSheet(prodSheet, products) {
+  if (!prodSheet) return;
   // Kosongkan baris lama kecuali header
   var lastRow = prodSheet.getLastRow();
   if (lastRow > 1) {
@@ -219,6 +226,34 @@ function updateProductStockSheet(prodSheet, products) {
 
   if (rows.length > 0) {
     prodSheet.getRange(2, 1, rows.length, 6).setValues(rows);
+  }
+}
+
+/**
+ * Update lembar akun pegawai (User ID & PIN)
+ */
+function updateUsersSheet(userSheet, users) {
+  if (!userSheet) return;
+  var lastRow = userSheet.getLastRow();
+  if (lastRow > 1) {
+    userSheet.getRange(2, 1, lastRow - 1, 6).clearContent();
+  }
+
+  var rows = [];
+  for (var i = 0; i < users.length; i++) {
+    var u = users[i];
+    rows.push([
+      u.userId,
+      u.name,
+      u.pin,
+      u.assignedCashier || "Bebas",
+      u.status === "active" ? "Aktif" : "Nonaktif",
+      new Date()
+    ]);
+  }
+
+  if (rows.length > 0) {
+    userSheet.getRange(2, 1, rows.length, 6).setValues(rows);
   }
 }
 
@@ -268,6 +303,15 @@ function initSheetsIfNotExist(ss) {
     var prodHeaders = ["ID Produk", "Nama Barang", "Kategori", "Sisa Stok", "Satuan Terkecil", "Daftar Satuan Jual & Harga"];
     prodSheet.getRange(1, 1, 1, prodHeaders.length).setValues([prodHeaders]);
     formatHeaderRow(prodSheet, prodHeaders.length, "#10b981");
+  }
+
+  // 5. Pegawai_User
+  var userSheet = ss.getSheetByName("Pegawai_User");
+  if (!userSheet) {
+    userSheet = ss.insertSheet("Pegawai_User");
+    var userHeaders = ["User ID", "Nama Pegawai", "PIN Login", "Kasir Default", "Status", "Terakhir Sync"];
+    userSheet.getRange(1, 1, 1, userHeaders.length).setValues([userHeaders]);
+    formatHeaderRow(userSheet, userHeaders.length, "#8b5cf6");
   }
 }
 

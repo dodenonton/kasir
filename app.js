@@ -110,6 +110,24 @@ const DEFAULT_EXPENSES = [
   }
 ];
 
+// Initial Sample Users (Pegawai Kasir Dibuat oleh Admin)
+const DEFAULT_USERS = [
+  {
+    userId: "KASIR1",
+    name: "Budi Santoso",
+    pin: "1111",
+    assignedCashier: "Kasir 01",
+    status: "active"
+  },
+  {
+    userId: "KASIR2",
+    name: "Siti Rahma",
+    pin: "2222",
+    assignedCashier: "Kasir 02",
+    status: "active"
+  }
+];
+
 // APPLICATION CONTROLLER
 class KasirApp {
   constructor() {
@@ -139,6 +157,7 @@ class KasirApp {
     this.renderTransactionHistory();
     this.renderExpensesTable();
     this.renderProductMasterTable();
+    this.renderEmployeeTable();
     this.updatePendingCount();
 
     // Auto-sync if online on start
@@ -186,25 +205,33 @@ class KasirApp {
     const savedExpenses = localStorage.getItem("toko_expenses");
     this.expenses = savedExpenses ? JSON.parse(savedExpenses) : DEFAULT_EXPENSES;
 
-    // 5. Cashier Session (Nomor Kasir & Shift Pegawai)
-    this.cashierSession = {
-      cashierNumber: localStorage.getItem("toko_cashier_number") || "Kasir 01",
-      employeeName: localStorage.getItem("toko_employee_name") || "Pegawai 1",
-      shift: localStorage.getItem("toko_shift") || "Shift 1 (Pagi)",
-      shiftStart: localStorage.getItem("toko_shift_start") || new Date().toISOString()
+    // 5. Users (Pegawai Kasir Dibuat oleh Admin)
+    const savedUsers = localStorage.getItem("toko_users");
+    this.users = savedUsers ? JSON.parse(savedUsers) : DEFAULT_USERS;
+
+    // 6. Active Cashier Session (Nomor Kasir & Shift Pegawai)
+    const savedSession = localStorage.getItem("toko_current_session");
+    this.cashierSession = savedSession ? JSON.parse(savedSession) : {
+      userId: this.users[0] ? this.users[0].userId : "KASIR1",
+      employeeName: this.users[0] ? this.users[0].name : "Budi Santoso",
+      cashierNumber: (this.users[0] && this.users[0].assignedCashier !== "Bebas") ? this.users[0].assignedCashier : "Kasir 01",
+      shift: "Shift 1 (Pagi)",
+      shiftStart: new Date().toISOString()
     };
 
     // Save defaults back if newly initiated
     if (!savedProducts) this.saveProducts();
     if (!savedExpenses) this.saveExpenses();
-    if (!localStorage.getItem("toko_shift_start")) this.saveCashierSession();
+    if (!savedUsers) this.saveUsers();
+    if (!savedSession) this.saveCashierSession();
+  }
+
+  saveUsers() {
+    localStorage.setItem("toko_users", JSON.stringify(this.users));
   }
 
   saveCashierSession() {
-    localStorage.setItem("toko_cashier_number", this.cashierSession.cashierNumber);
-    localStorage.setItem("toko_employee_name", this.cashierSession.employeeName);
-    localStorage.setItem("toko_shift", this.cashierSession.shift);
-    localStorage.setItem("toko_shift_start", this.cashierSession.shiftStart);
+    localStorage.setItem("toko_current_session", JSON.stringify(this.cashierSession));
     this.updateCashierShiftUI();
   }
 
@@ -447,7 +474,7 @@ class KasirApp {
     }
   }
 
-  // ==================== CASHIER NUMBER & SHIFT MANAGEMENT ====================
+  // ==================== CASHIER USER LOGIN & SHIFT MANAGEMENT ====================
   updateCashierShiftUI() {
     const headerNo = document.getElementById("headerCashierNumber");
     const headerEmp = document.getElementById("headerEmployeeName");
@@ -455,56 +482,250 @@ class KasirApp {
     const cartCashier = document.getElementById("cartCashierText");
     const cartShift = document.getElementById("cartShiftText");
 
-    if (headerNo) headerNo.textContent = this.cashierSession.cashierNumber;
-    if (headerEmp) headerEmp.textContent = this.cashierSession.employeeName;
-    if (headerShift) headerShift.textContent = this.cashierSession.shift.split(" ")[0]; // e.g. "Shift 1"
+    if (headerNo) headerNo.textContent = this.cashierSession.cashierNumber || "Kasir 01";
+    if (headerEmp) headerEmp.textContent = this.cashierSession.employeeName || "Pegawai 1";
+    if (headerShift) headerShift.textContent = (this.cashierSession.shift || "Shift 1").split(" ")[0];
 
-    if (cartCashier) cartCashier.textContent = `${this.cashierSession.cashierNumber} (${this.cashierSession.employeeName})`;
-    if (cartShift) cartShift.textContent = this.cashierSession.shift;
+    if (cartCashier) cartCashier.textContent = `${this.cashierSession.cashierNumber || 'Kasir 01'} (${this.cashierSession.employeeName || 'Pegawai 1'})`;
+    if (cartShift) cartShift.textContent = this.cashierSession.shift || "Shift 1 (Pagi)";
   }
 
-  openCashierShiftModal() {
-    const modal = document.getElementById("cashierShiftModal");
-    const inputNo = document.getElementById("inputCashierNumber");
-    const inputEmp = document.getElementById("inputEmployeeName");
-    const selectShift = document.getElementById("selectShiftName");
-    const timeDisplay = document.getElementById("shiftStartTimeDisplay");
+  openEmployeeLoginModal() {
+    const modal = document.getElementById("employeeLoginModal");
+    const select = document.getElementById("empLoginSelect");
+    const pinInput = document.getElementById("empLoginPin");
+    const err = document.getElementById("empLoginErrorMsg");
+    const shiftSelect = document.getElementById("empLoginShift");
+    const cashierSelect = document.getElementById("empLoginCashierNo");
 
-    if (inputNo) inputNo.value = this.cashierSession.cashierNumber;
-    if (inputEmp) inputEmp.value = this.cashierSession.employeeName;
-    if (selectShift) selectShift.value = this.cashierSession.shift;
+    err.classList.add("hidden");
+    pinInput.value = "";
 
-    if (timeDisplay) {
-      const dt = new Date(this.cashierSession.shiftStart);
-      timeDisplay.textContent = isNaN(dt) ? "-" : dt.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
-    }
+    // Populate active users
+    const activeUsers = this.users.filter(u => u.status !== "inactive");
+    select.innerHTML = activeUsers.map(u => `
+      <option value="${u.userId}" ${u.userId === this.cashierSession.userId ? 'selected' : ''}>
+        ${u.name} (${u.userId}) - ${u.assignedCashier || 'Bebas'}
+      </option>
+    `).join("");
 
+    if (shiftSelect) shiftSelect.value = this.cashierSession.shift || "Shift 1 (Pagi)";
+    if (cashierSelect) cashierSelect.value = this.cashierSession.cashierNumber || "Kasir 01";
+
+    this.onEmpLoginSelectChange();
     modal.classList.remove("hidden");
+    setTimeout(() => pinInput.focus(), 100);
   }
 
-  closeCashierShiftModal() {
-    const modal = document.getElementById("cashierShiftModal");
+  closeEmployeeLoginModal() {
+    const modal = document.getElementById("employeeLoginModal");
     if (modal) modal.classList.add("hidden");
   }
 
-  setQuickCashierNo(no) {
-    const inputNo = document.getElementById("inputCashierNumber");
-    if (inputNo) inputNo.value = no;
+  onEmpLoginSelectChange() {
+    const select = document.getElementById("empLoginSelect");
+    const cashierSelect = document.getElementById("empLoginCashierNo");
+    if (!select || !cashierSelect) return;
+
+    const user = this.users.find(u => u.userId === select.value);
+    if (user && user.assignedCashier && user.assignedCashier !== "Bebas") {
+      cashierSelect.value = user.assignedCashier;
+    }
   }
 
-  saveCashierShift(e) {
+  processEmployeeLogin(e) {
     if (e) e.preventDefault();
-    const inputNo = document.getElementById("inputCashierNumber").value.trim() || "Kasir 01";
-    const inputEmp = document.getElementById("inputEmployeeName").value.trim() || "Pegawai 1";
-    const selectShift = document.getElementById("selectShiftName").value;
+    const select = document.getElementById("empLoginSelect");
+    const pinInput = document.getElementById("empLoginPin");
+    const cashierSelect = document.getElementById("empLoginCashierNo");
+    const shiftSelect = document.getElementById("empLoginShift");
+    const err = document.getElementById("empLoginErrorMsg");
 
-    this.cashierSession.cashierNumber = inputNo;
-    this.cashierSession.employeeName = inputEmp;
-    this.cashierSession.shift = selectShift;
+    const userId = select.value;
+    const enteredPin = pinInput.value.trim();
+
+    const user = this.users.find(u => u.userId === userId && u.status !== "inactive");
+    if (!user || user.pin !== enteredPin) {
+      err.classList.remove("hidden");
+      pinInput.value = "";
+      pinInput.focus();
+      return;
+    }
+
+    // Set new session
+    const isDifferentUser = this.cashierSession.userId !== user.userId || this.cashierSession.shift !== shiftSelect.value;
+    this.cashierSession = {
+      userId: user.userId,
+      employeeName: user.name,
+      cashierNumber: cashierSelect.value || user.assignedCashier || "Kasir 01",
+      shift: shiftSelect.value,
+      shiftStart: isDifferentUser ? new Date().toISOString() : (this.cashierSession.shiftStart || new Date().toISOString())
+    };
+
     this.saveCashierSession();
+    this.closeEmployeeLoginModal();
+    this.showToast(`Login Kasir Berhasil! Selamat bertugas, ${user.name} (${this.cashierSession.cashierNumber}).`, "success");
+  }
 
-    this.closeCashierShiftModal();
-    this.showToast(`Identitas diperbarui: ${inputNo} • ${inputEmp} • ${selectShift}`, "success");
+  logoutCashier() {
+    if (confirm(`Petugas ${this.cashierSession.employeeName} ingin keluar?\n\nKlik OK untuk melihat Rekap Tutup Shift sebelum berganti petugas, atau Cancel untuk tetap di aplikasi.`)) {
+      this.openShiftReportModal();
+    }
+  }
+
+  // ==================== KELOLA PEGAWAI (ADMIN ONLY) ====================
+  renderEmployeeTable() {
+    const tbody = document.getElementById("employeeTableBody");
+    if (!tbody) return;
+
+    if (!this.users || this.users.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400">Belum ada data pegawai. Klik "Tambah Pegawai Baru" di atas.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = this.users.map(u => {
+      const statusBadge = u.status === "active"
+        ? `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>`
+        : `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500">Nonaktif</span>`;
+
+      return `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="py-3 px-4 font-mono font-bold text-indigo-700 text-xs">${u.userId}</td>
+          <td class="py-3 px-4 font-bold text-slate-800">${u.name}</td>
+          <td class="py-3 px-4 font-mono text-slate-600 bg-slate-50/50">
+            <span class="tracking-widest font-black text-xs text-slate-700">••••</span>
+            <span class="text-[10px] text-slate-400 ml-1">(${u.pin})</span>
+          </td>
+          <td class="py-3 px-4 font-semibold text-slate-700">${u.assignedCashier || 'Bebas'}</td>
+          <td class="py-3 px-4">${statusBadge}</td>
+          <td class="py-3 px-4 text-center">
+            <div class="flex items-center justify-center gap-1.5">
+              <button onclick="app.openEmployeeModal('${u.userId}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-semibold text-[11px] transition">
+                <i class="fa-solid fa-pen-to-square mr-1"></i>Edit
+              </button>
+              <button onclick="app.deleteEmployee('${u.userId}')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold text-[11px] transition">
+                <i class="fa-solid fa-trash mr-1"></i>Hapus
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  openEmployeeModal(userId = null) {
+    const modal = document.getElementById("employeeModal");
+    const title = document.getElementById("employeeModalTitle");
+    const origId = document.getElementById("empEditOriginalId");
+    const idInput = document.getElementById("empUserIdInput");
+    const nameInput = document.getElementById("empFullNameInput");
+    const pinInput = document.getElementById("empPinInput");
+    const cashierSelect = document.getElementById("empDefaultCashier");
+    const statusSelect = document.getElementById("empStatusSelect");
+
+    if (userId) {
+      const u = this.users.find(x => x.userId === userId);
+      if (!u) return;
+      title.textContent = `Edit Pegawai: ${u.name}`;
+      origId.value = u.userId;
+      idInput.value = u.userId;
+      idInput.readOnly = true; // User ID tidak diubah saat edit
+      nameInput.value = u.name;
+      pinInput.value = u.pin;
+      cashierSelect.value = u.assignedCashier || "Kasir 01";
+      statusSelect.value = u.status || "active";
+    } else {
+      title.textContent = "Tambah Pegawai Baru";
+      origId.value = "";
+      idInput.value = "";
+      idInput.readOnly = false;
+      nameInput.value = "";
+      pinInput.value = "";
+      cashierSelect.value = "Kasir 01";
+      statusSelect.value = "active";
+    }
+
+    modal.classList.remove("hidden");
+    setTimeout(() => (origId.value ? nameInput.focus() : idInput.focus()), 100);
+  }
+
+  closeEmployeeModal() {
+    const modal = document.getElementById("employeeModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  saveEmployee(e) {
+    if (e) e.preventDefault();
+    const origId = document.getElementById("empEditOriginalId").value;
+    const userId = document.getElementById("empUserIdInput").value.trim().toUpperCase().replace(/\s+/g, '');
+    const name = document.getElementById("empFullNameInput").value.trim();
+    const pin = document.getElementById("empPinInput").value.trim();
+    const assignedCashier = document.getElementById("empDefaultCashier").value;
+    const status = document.getElementById("empStatusSelect").value;
+
+    if (!userId || !name || !pin) {
+      this.showToast("User ID, Nama, dan PIN wajib diisi!", "warning");
+      return;
+    }
+
+    if (origId) {
+      // Edit existing
+      const idx = this.users.findIndex(u => u.userId === origId);
+      if (idx > -1) {
+        this.users[idx] = { ...this.users[idx], name, pin, assignedCashier, status };
+        // If current session is this user, update name
+        if (this.cashierSession.userId === origId) {
+          this.cashierSession.employeeName = name;
+          this.saveCashierSession();
+        }
+      }
+    } else {
+      // Check duplicate userId
+      if (this.users.some(u => u.userId === userId)) {
+        this.showToast(`User ID "${userId}" sudah digunakan! Gunakan ID lain.`, "warning");
+        document.getElementById("empUserIdInput").focus();
+        return;
+      }
+      this.users.push({ userId, name, pin, assignedCashier, status });
+    }
+
+    this.saveUsers();
+    this.closeEmployeeModal();
+    this.renderEmployeeTable();
+    this.showToast(`Data pegawai ${name} berhasil disimpan!`, "success");
+
+    // Sync to cloud if online
+    if (this.isOnlineState && this.settings.gasUrl) {
+      this.syncPendingData();
+    }
+  }
+
+  deleteEmployee(userId) {
+    const u = this.users.find(x => x.userId === userId);
+    if (!u) return;
+
+    if (this.users.length <= 1) {
+      this.showToast("Minimal harus tersisa 1 akun pegawai!", "warning");
+      return;
+    }
+
+    if (!confirm(`Hapus akun pegawai "${u.name}" (${u.userId})?`)) return;
+
+    this.users = this.users.filter(x => x.userId !== userId);
+    this.saveUsers();
+    this.renderEmployeeTable();
+    this.showToast(`Pegawai ${u.name} telah dihapus`, "info");
+
+    // If active user was deleted, switch to another
+    if (this.cashierSession.userId === userId) {
+      this.cashierSession.userId = this.users[0].userId;
+      this.cashierSession.employeeName = this.users[0].name;
+      this.saveCashierSession();
+    }
+
+    if (this.isOnlineState && this.settings.gasUrl) {
+      this.syncPendingData();
+    }
   }
 
   // ==================== REKAP TUTUP SHIFT KASIR (CLOSING REPORT) ====================
@@ -677,14 +898,14 @@ class KasirApp {
     this.cashierSession.shiftStart = new Date().toISOString();
     this.saveCashierSession();
     this.closeShiftReportModal();
-    this.showToast("Shift baru dimulai! Jam buka shift telah direset.", "success");
-    this.openCashierShiftModal();
+    this.showToast("Shift baru dimulai! Silakan login untuk petugas baru.", "success");
+    this.openEmployeeLoginModal();
   }
 
   // ==================== NAVIGATION TABS ====================
   switchTab(tabName) {
     // Security check: if cashier tries to access admin tabs, reject
-    if (["profitloss", "products", "settings"].includes(tabName) && this.currentRole !== "admin") {
+    if (["profitloss", "products", "employees", "settings"].includes(tabName) && this.currentRole !== "admin") {
       this.showToast("Menu ini hanya dapat diakses oleh Admin!", "warning");
       this.openRoleModal();
       return;
@@ -708,6 +929,8 @@ class KasirApp {
       this.renderTransactionHistory();
     } else if (tabName === "products") {
       this.renderProductMasterTable();
+    } else if (tabName === "employees") {
+      this.renderEmployeeTable();
     } else if (tabName === "expenses") {
       this.renderExpensesTable();
     }
@@ -2052,6 +2275,7 @@ class KasirApp {
         transactions: pendingTx,
         expenses: pendingExp,
         products: this.products,
+        users: this.users,
         cancelledInvoices: this.cancelledInvoices || []
       };
 
