@@ -133,6 +133,7 @@ class KasirApp {
     
     // Render initial views
     this.updateRoleUI();
+    this.updateCashierShiftUI();
     this.renderPosProducts();
     this.updateCartSummary();
     this.renderTransactionHistory();
@@ -185,9 +186,26 @@ class KasirApp {
     const savedExpenses = localStorage.getItem("toko_expenses");
     this.expenses = savedExpenses ? JSON.parse(savedExpenses) : DEFAULT_EXPENSES;
 
+    // 5. Cashier Session (Nomor Kasir & Shift Pegawai)
+    this.cashierSession = {
+      cashierNumber: localStorage.getItem("toko_cashier_number") || "Kasir 01",
+      employeeName: localStorage.getItem("toko_employee_name") || "Pegawai 1",
+      shift: localStorage.getItem("toko_shift") || "Shift 1 (Pagi)",
+      shiftStart: localStorage.getItem("toko_shift_start") || new Date().toISOString()
+    };
+
     // Save defaults back if newly initiated
     if (!savedProducts) this.saveProducts();
     if (!savedExpenses) this.saveExpenses();
+    if (!localStorage.getItem("toko_shift_start")) this.saveCashierSession();
+  }
+
+  saveCashierSession() {
+    localStorage.setItem("toko_cashier_number", this.cashierSession.cashierNumber);
+    localStorage.setItem("toko_employee_name", this.cashierSession.employeeName);
+    localStorage.setItem("toko_shift", this.cashierSession.shift);
+    localStorage.setItem("toko_shift_start", this.cashierSession.shiftStart);
+    this.updateCashierShiftUI();
   }
 
   saveProducts() {
@@ -427,6 +445,240 @@ class KasirApp {
       roleIcon.className = "fa-solid fa-user-shield text-slate-500";
       adminTabs.forEach(el => el.classList.add("hidden"));
     }
+  }
+
+  // ==================== CASHIER NUMBER & SHIFT MANAGEMENT ====================
+  updateCashierShiftUI() {
+    const headerNo = document.getElementById("headerCashierNumber");
+    const headerEmp = document.getElementById("headerEmployeeName");
+    const headerShift = document.getElementById("headerShiftBadge");
+    const cartCashier = document.getElementById("cartCashierText");
+    const cartShift = document.getElementById("cartShiftText");
+
+    if (headerNo) headerNo.textContent = this.cashierSession.cashierNumber;
+    if (headerEmp) headerEmp.textContent = this.cashierSession.employeeName;
+    if (headerShift) headerShift.textContent = this.cashierSession.shift.split(" ")[0]; // e.g. "Shift 1"
+
+    if (cartCashier) cartCashier.textContent = `${this.cashierSession.cashierNumber} (${this.cashierSession.employeeName})`;
+    if (cartShift) cartShift.textContent = this.cashierSession.shift;
+  }
+
+  openCashierShiftModal() {
+    const modal = document.getElementById("cashierShiftModal");
+    const inputNo = document.getElementById("inputCashierNumber");
+    const inputEmp = document.getElementById("inputEmployeeName");
+    const selectShift = document.getElementById("selectShiftName");
+    const timeDisplay = document.getElementById("shiftStartTimeDisplay");
+
+    if (inputNo) inputNo.value = this.cashierSession.cashierNumber;
+    if (inputEmp) inputEmp.value = this.cashierSession.employeeName;
+    if (selectShift) selectShift.value = this.cashierSession.shift;
+
+    if (timeDisplay) {
+      const dt = new Date(this.cashierSession.shiftStart);
+      timeDisplay.textContent = isNaN(dt) ? "-" : dt.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    modal.classList.remove("hidden");
+  }
+
+  closeCashierShiftModal() {
+    const modal = document.getElementById("cashierShiftModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  setQuickCashierNo(no) {
+    const inputNo = document.getElementById("inputCashierNumber");
+    if (inputNo) inputNo.value = no;
+  }
+
+  saveCashierShift(e) {
+    if (e) e.preventDefault();
+    const inputNo = document.getElementById("inputCashierNumber").value.trim() || "Kasir 01";
+    const inputEmp = document.getElementById("inputEmployeeName").value.trim() || "Pegawai 1";
+    const selectShift = document.getElementById("selectShiftName").value;
+
+    this.cashierSession.cashierNumber = inputNo;
+    this.cashierSession.employeeName = inputEmp;
+    this.cashierSession.shift = selectShift;
+    this.saveCashierSession();
+
+    this.closeCashierShiftModal();
+    this.showToast(`Identitas diperbarui: ${inputNo} • ${inputEmp} • ${selectShift}`, "success");
+  }
+
+  // ==================== REKAP TUTUP SHIFT KASIR (CLOSING REPORT) ====================
+  openShiftReportModal() {
+    this.closeCashierShiftModal();
+    const modal = document.getElementById("shiftReportModal");
+    const shiftData = this.calcShiftData();
+
+    document.getElementById("repCashierNumber").textContent = this.cashierSession.cashierNumber;
+    document.getElementById("repEmployeeName").textContent = this.cashierSession.employeeName;
+    document.getElementById("repShiftName").textContent = this.cashierSession.shift;
+
+    const startDt = new Date(this.cashierSession.shiftStart);
+    document.getElementById("repStartTime").textContent = isNaN(startDt) ? "-" : startDt.toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
+    document.getElementById("repEndTime").textContent = new Date().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
+
+    document.getElementById("repCashInDrawer").textContent = `Rp ${shiftData.payCash.toLocaleString("id-ID")}`;
+    document.getElementById("repTxCount").textContent = `${shiftData.txCount} Transaksi`;
+    document.getElementById("repGrossSales").textContent = `Rp ${shiftData.grossSales.toLocaleString("id-ID")}`;
+    document.getElementById("repDiscount").textContent = `-Rp ${shiftData.discount.toLocaleString("id-ID")}`;
+    document.getElementById("repNetSales").textContent = `Rp ${shiftData.netSales.toLocaleString("id-ID")}`;
+
+    document.getElementById("repPayCash").textContent = `Rp ${shiftData.payCash.toLocaleString("id-ID")}`;
+    document.getElementById("repPayTransfer").textContent = `Rp ${shiftData.payTransfer.toLocaleString("id-ID")}`;
+    document.getElementById("repPayCredit").textContent = `Rp ${shiftData.payCredit.toLocaleString("id-ID")}`;
+
+    document.getElementById("repGrossProfit").textContent = `Rp ${shiftData.grossProfit.toLocaleString("id-ID")}`;
+
+    modal.classList.remove("hidden");
+  }
+
+  closeShiftReportModal() {
+    const modal = document.getElementById("shiftReportModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  calcShiftData() {
+    const startTimeMs = new Date(this.cashierSession.shiftStart).getTime() || 0;
+    const currentCashier = this.cashierSession.cashierNumber;
+
+    // Filter transactions from this shift and cashier
+    const shiftTransactions = this.transactions.filter(t => {
+      const isAfterStart = (t.timestamp || 0) >= startTimeMs;
+      const isSameCashier = !t.cashierNumber || t.cashierNumber === currentCashier;
+      return isAfterStart && isSameCashier;
+    });
+
+    const txCount = shiftTransactions.length;
+    const grossSales = shiftTransactions.reduce((sum, t) => sum + (t.subtotal || 0), 0);
+    const discount = shiftTransactions.reduce((sum, t) => sum + (t.discount || 0), 0);
+    const netSales = grossSales - discount;
+    const grossProfit = shiftTransactions.reduce((sum, t) => sum + (t.grossProfit || 0), 0);
+
+    const payCash = shiftTransactions
+      .filter(t => t.paymentType === "Tunai")
+      .reduce((sum, t) => sum + (t.total || 0), 0);
+
+    const payTransfer = shiftTransactions
+      .filter(t => t.paymentType === "Transfer")
+      .reduce((sum, t) => sum + (t.total || 0), 0);
+
+    const payCredit = shiftTransactions
+      .filter(t => t.paymentType === "Hutang")
+      .reduce((sum, t) => sum + (t.total || 0), 0);
+
+    return {
+      txCount, grossSales, discount, netSales, grossProfit,
+      payCash, payTransfer, payCredit,
+      transactions: shiftTransactions
+    };
+  }
+
+  printShiftReceipt() {
+    const shiftData = this.calcShiftData();
+    const container = document.getElementById("receiptPrintArea");
+
+    const startDt = new Date(this.cashierSession.shiftStart);
+    const startTimeFormatted = isNaN(startDt) ? "-" : startDt.toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
+    const endTimeFormatted = new Date().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
+
+    container.innerHTML = `
+      <div class="text-center pb-2 border-b border-dashed border-slate-300">
+        <h2 class="font-bold text-sm text-slate-900 uppercase">${this.settings.storeName}</h2>
+        <p class="text-[11px] font-bold text-slate-800">REKAP TUTUP SHIFT KASIR</p>
+      </div>
+
+      <div class="py-2 border-b border-dashed border-slate-300 text-[10px] space-y-0.5">
+        <div class="flex justify-between">
+          <span>No. Kasir:</span>
+          <span class="font-bold">${this.cashierSession.cashierNumber}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Petugas:</span>
+          <span class="font-bold">${this.cashierSession.employeeName}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Shift:</span>
+          <span>${this.cashierSession.shift}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Mulai Shift:</span>
+          <span>${startTimeFormatted}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Tutup Shift:</span>
+          <span>${endTimeFormatted}</span>
+        </div>
+      </div>
+
+      <div class="py-2 border-b border-dashed border-slate-300 text-[11px] space-y-1">
+        <div class="flex justify-between">
+          <span>Total Transaksi:</span>
+          <span class="font-bold">${shiftData.txCount} Nota</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Total Penjualan:</span>
+          <span>Rp ${shiftData.grossSales.toLocaleString("id-ID")}</span>
+        </div>
+        ${shiftData.discount > 0 ? `
+          <div class="flex justify-between text-rose-600">
+            <span>Total Diskon:</span>
+            <span>-Rp ${shiftData.discount.toLocaleString("id-ID")}</span>
+          </div>
+        ` : ''}
+        <div class="flex justify-between font-bold text-xs pt-1 border-t border-slate-200">
+          <span>TOTAL OMSET:</span>
+          <span>Rp ${shiftData.netSales.toLocaleString("id-ID")}</span>
+        </div>
+      </div>
+
+      <div class="py-2 border-b border-dashed border-slate-300 text-[10px] space-y-1">
+        <div class="font-bold text-slate-700">RINCIAN PEMBAYARAN:</div>
+        <div class="flex justify-between font-bold text-emerald-800 bg-emerald-50 px-1 py-0.5 rounded">
+          <span>• Tunai di Laci Kasir:</span>
+          <span>Rp ${shiftData.payCash.toLocaleString("id-ID")}</span>
+        </div>
+        <div class="flex justify-between text-slate-600">
+          <span>• Transfer / QRIS:</span>
+          <span>Rp ${shiftData.payTransfer.toLocaleString("id-ID")}</span>
+        </div>
+        <div class="flex justify-between text-slate-600">
+          <span>• Hutang / Bon:</span>
+          <span>Rp ${shiftData.payCredit.toLocaleString("id-ID")}</span>
+        </div>
+      </div>
+
+      <div class="pt-3 text-center text-[10px] text-slate-500 space-y-1">
+        <p>Laporan Shift Kasir Selesai Dicetak</p>
+        <div class="pt-6 flex justify-around text-center text-[10px] text-slate-700">
+          <div>
+            <p>Kasir Bertugas</p>
+            <div class="h-8"></div>
+            <p class="font-bold">(${this.cashierSession.employeeName})</p>
+          </div>
+          <div>
+            <p>Supervisor / Toko</p>
+            <div class="h-8"></div>
+            <p class="font-bold">( .................... )</p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    this.closeShiftReportModal();
+    document.getElementById("receiptModal").classList.remove("hidden");
+  }
+
+  startNewShift() {
+    if (!confirm("Tutup shift saat ini dan mulai sesi shift baru? Jam awal shift akan direset ke sekarang.")) return;
+    this.cashierSession.shiftStart = new Date().toISOString();
+    this.saveCashierSession();
+    this.closeShiftReportModal();
+    this.showToast("Shift baru dimulai! Jam buka shift telah direset.", "success");
+    this.openCashierShiftModal();
   }
 
   // ==================== NAVIGATION TABS ====================
@@ -800,12 +1052,19 @@ class KasirApp {
     this.saveProducts();
 
     // 3. Create Transaction Record
+    const cashierLabel = this.currentRole === "admin"
+      ? `Admin (${this.cashierSession.cashierNumber})`
+      : `${this.cashierSession.cashierNumber} - ${this.cashierSession.employeeName} (${this.cashierSession.shift})`;
+
     const transaction = {
       invoiceNo: invoiceNo,
       date: dateStr,
       time: timeStr,
       timestamp: now.getTime(),
-      cashier: this.currentRole === "admin" ? "Admin" : "Kasir Pegawai",
+      cashier: cashierLabel,
+      cashierNumber: this.cashierSession.cashierNumber,
+      employeeName: this.cashierSession.employeeName,
+      shift: this.cashierSession.shift,
       customerName: customerName,
       paymentType: paymentType,
       items: this.cart.map(i => ({
@@ -880,8 +1139,12 @@ class KasirApp {
           <span>${tx.date} ${tx.time}</span>
         </div>
         <div class="flex justify-between">
-          <span>Kasir:</span>
-          <span>${tx.cashier}</span>
+          <span>No. Kasir:</span>
+          <span class="font-bold">${tx.cashierNumber || 'Kasir 01'} (${tx.employeeName || tx.cashier})</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Shift:</span>
+          <span>${tx.shift || 'Shift 1'}</span>
         </div>
         <div class="flex justify-between">
           <span>Pelanggan:</span>
@@ -933,11 +1196,19 @@ class KasirApp {
   renderTransactionHistory() {
     const tbody = document.getElementById("historyTableBody");
     const emptyState = document.getElementById("historyEmpty");
-    const dateFilter = document.getElementById("historyDateFilter").value;
+    const dateFilter = document.getElementById("historyDateFilter")?.value || "";
+    const cashierFilter = document.getElementById("historyCashierFilter")?.value || "all";
+    const shiftFilter = document.getElementById("historyShiftFilter")?.value || "all";
 
     let list = this.transactions;
     if (dateFilter) {
       list = list.filter(t => t.date === dateFilter);
+    }
+    if (cashierFilter && cashierFilter !== "all") {
+      list = list.filter(t => (t.cashierNumber === cashierFilter) || (t.cashier && t.cashier.includes(cashierFilter)));
+    }
+    if (shiftFilter && shiftFilter !== "all") {
+      list = list.filter(t => (t.shift && t.shift.startsWith(shiftFilter)) || (t.cashier && t.cashier.includes(shiftFilter)));
     }
 
     if (list.length === 0) {
@@ -953,10 +1224,17 @@ class KasirApp {
         ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><i class="fa-solid fa-cloud mr-1"></i>Tersinkron</span>`
         : `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200"><i class="fa-solid fa-clock mr-1"></i>Lokal (Antrean)</span>`;
 
+      const cashierDisplayName = tx.employeeName || (tx.cashier ? tx.cashier.replace(/Kasir \d+\s*-\s*/, '') : 'Kasir');
+      const shiftDisplayName = tx.shift ? tx.shift.split(" ")[0] : "Shift 1";
+
       return `
         <tr class="hover:bg-slate-50 transition">
           <td class="py-3 px-4 font-mono font-bold text-indigo-600">${tx.invoiceNo}</td>
           <td class="py-3 px-4 text-slate-500">${tx.date} <span class="text-[10px] block">${tx.time}</span></td>
+          <td class="py-3 px-4">
+            <span class="font-bold text-slate-900">${tx.cashierNumber || 'Kasir 01'}</span>
+            <span class="text-[10px] block text-slate-500 font-medium">${cashierDisplayName} • <b class="text-indigo-600">${shiftDisplayName}</b></span>
+          </td>
           <td class="py-3 px-4 font-semibold text-slate-800">${tx.customerName}</td>
           <td class="py-3 px-4 text-slate-600 max-w-xs truncate" title="${itemsSummary}">${itemsSummary}</td>
           <td class="py-3 px-4 font-bold text-slate-900">Rp ${tx.total.toLocaleString("id-ID")}</td>
