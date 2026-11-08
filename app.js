@@ -157,6 +157,15 @@ const DEFAULT_USERS = [
   }
 ];
 
+// Initial Loket / Nomor Kasir (Dapat dikelola oleh Admin & Pemilik Toko)
+const DEFAULT_CASHIER_COUNTERS = [
+  "Kasir 01",
+  "Kasir 02",
+  "Kasir 03",
+  "Kasir 04",
+  "Kasir Mobile (HP)"
+];
+
 // APPLICATION CONTROLLER
 class KasirApp {
   constructor() {
@@ -184,6 +193,7 @@ class KasirApp {
     this.initYearOptions();
     
     // Render initial views
+    this.renderCashierCounterOptions();
     this.updateRoleUI();
     this.updateCashierShiftUI();
     this.renderPosProducts();
@@ -323,10 +333,29 @@ class KasirApp {
       this.cashierSession = null;
     }
 
+    // 5B. Cashier Counters / Loket Kasir (Bisa diedit oleh Admin & Pemilik Toko)
+    const savedCounters = localStorage.getItem("toko_cashier_counters");
+    let loadedCounters = null;
+    if (savedCounters) {
+      try {
+        loadedCounters = JSON.parse(savedCounters);
+      } catch (e) {
+        loadedCounters = null;
+      }
+    }
+    this.cashierCounters = (Array.isArray(loadedCounters) && loadedCounters.length > 0)
+      ? loadedCounters
+      : DEFAULT_CASHIER_COUNTERS;
+
     // Save defaults back if newly initiated
     if (!savedProducts) this.saveProducts();
     if (!savedExpenses) this.saveExpenses();
     if (!savedUsers) this.saveUsers();
+    if (!savedCounters) this.saveCashierCounters();
+  }
+
+  saveCashierCounters() {
+    localStorage.setItem("toko_cashier_counters", JSON.stringify(this.cashierCounters));
   }
 
   saveOwners() {
@@ -959,6 +988,228 @@ class KasirApp {
     }
   }
 
+  // Render dropdown pilihan loket kasir di berbagai form & filter
+  renderCashierCounterOptions() {
+    const loginCashierSelect = document.getElementById("empLoginCashierNo");
+    const defaultCashierSelect = document.getElementById("empDefaultCashier");
+    const historyCashierFilter = document.getElementById("historyCashierFilter");
+
+    const currentLoginVal = loginCashierSelect ? loginCashierSelect.value : "";
+    const currentDefaultVal = defaultCashierSelect ? defaultCashierSelect.value : "";
+    const currentHistVal = historyCashierFilter ? historyCashierFilter.value : "all";
+
+    // 1. Dropdown Modal Login Kasir
+    if (loginCashierSelect) {
+      let html = `<option value="" disabled selected>-- Pilih Nomor Kasir --</option>`;
+      this.cashierCounters.forEach(counter => {
+        html += `<option value="${counter}">${counter}</option>`;
+      });
+      loginCashierSelect.innerHTML = html;
+      if (currentLoginVal && this.cashierCounters.includes(currentLoginVal)) {
+        loginCashierSelect.value = currentLoginVal;
+      }
+    }
+
+    // 2. Dropdown Kasir Default di Modal Tambah/Edit Pegawai
+    if (defaultCashierSelect) {
+      let html = "";
+      this.cashierCounters.forEach(counter => {
+        html += `<option value="${counter}">${counter}</option>`;
+      });
+      html += `<option value="Bebas">Bebas / Pilih Saat Login</option>`;
+      defaultCashierSelect.innerHTML = html;
+      if (currentDefaultVal && (this.cashierCounters.includes(currentDefaultVal) || currentDefaultVal === "Bebas")) {
+        defaultCashierSelect.value = currentDefaultVal;
+      } else {
+        defaultCashierSelect.value = this.cashierCounters[0] || "Bebas";
+      }
+    }
+
+    // 3. Dropdown Filter Kasir di Riwayat Transaksi
+    if (historyCashierFilter) {
+      let html = `<option value="all">Semua Kasir</option>`;
+      this.cashierCounters.forEach(counter => {
+        html += `<option value="${counter}">${counter}</option>`;
+      });
+      historyCashierFilter.innerHTML = html;
+      if (currentHistVal && (this.cashierCounters.includes(currentHistVal) || currentHistVal === "all")) {
+        historyCashierFilter.value = currentHistVal;
+      }
+    }
+  }
+
+  // ==================== KELOLA NOMOR / LOKET KASIR (ADMIN & PEMILIK) ====================
+  openCashierCountersModal() {
+    const isOwner = this.currentRole === "owner";
+    const isAdmin = this.currentRole === "admin";
+    if (!isOwner && !isAdmin) {
+      this.showToast("Kelola loket kasir hanya dapat diakses oleh Admin atau Pemilik!", "warning");
+      return;
+    }
+
+    const modal = document.getElementById("cashierCountersModal");
+    const input = document.getElementById("newCounterInput");
+    if (input) input.value = "";
+    this.renderCashierCountersList();
+    if (modal) modal.classList.remove("hidden");
+    setTimeout(() => {
+      if (input) input.focus();
+    }, 100);
+  }
+
+  closeCashierCountersModal() {
+    const modal = document.getElementById("cashierCountersModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  renderCashierCountersList() {
+    const container = document.getElementById("counterListContainer");
+    const countBadge = document.getElementById("counterListCount");
+    if (countBadge) countBadge.textContent = `${this.cashierCounters.length} Loket`;
+
+    if (!container) return;
+    if (this.cashierCounters.length === 0) {
+      container.innerHTML = `
+        <div class="p-6 text-center text-slate-400">
+          <i class="fa-solid fa-cash-register text-2xl mb-1 text-slate-300"></i>
+          <p class="font-medium text-xs">Belum ada loket kasir yang terdaftar.</p>
+          <p class="text-[10px] text-slate-400">Gunakan form di atas untuk menambahkan nomor kasir baru.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = this.cashierCounters.map((counter, idx) => `
+      <div class="flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl transition">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs">
+            ${idx + 1}
+          </div>
+          <div>
+            <span class="font-bold text-slate-800 text-xs">${counter}</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button onclick="app.editCashierCounter(${idx})" class="px-2.5 py-1 bg-white hover:bg-amber-50 text-amber-800 border border-slate-200 hover:border-amber-300 rounded-lg font-semibold text-[11px] transition shadow-2xs">
+            <i class="fa-solid fa-pen-to-square mr-1"></i>Ubah
+          </button>
+          <button onclick="app.deleteCashierCounter(${idx})" class="px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 hover:border-rose-300 rounded-lg font-semibold text-[11px] transition shadow-2xs">
+            <i class="fa-solid fa-trash mr-1"></i>Hapus
+          </button>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  addCashierCounter(e) {
+    if (e) e.preventDefault();
+    const input = document.getElementById("newCounterInput");
+    const name = input ? input.value.trim() : "";
+
+    if (!name) {
+      this.showToast("Silakan masukkan nama/nomor loket kasir!", "warning");
+      return;
+    }
+
+    // Cek duplikasi
+    const exists = this.cashierCounters.some(c => c.toLowerCase() === name.toLowerCase());
+    if (exists) {
+      this.showToast(`Nomor loket "${name}" sudah ada dalam daftar!`, "warning");
+      if (input) input.focus();
+      return;
+    }
+
+    this.cashierCounters.push(name);
+    this.saveCashierCounters();
+    this.renderCashierCounterOptions();
+    this.renderCashierCountersList();
+    if (input) input.value = "";
+    this.showToast(`Loket "${name}" berhasil ditambahkan!`, "success");
+  }
+
+  editCashierCounter(index) {
+    if (index < 0 || index >= this.cashierCounters.length) return;
+    const oldName = this.cashierCounters[index];
+    const newName = prompt(`Ubah nama loket kasir:`, oldName);
+
+    if (newName === null) return; // User cancel
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      this.showToast("Nama nomor loket tidak boleh kosong!", "warning");
+      return;
+    }
+
+    if (trimmed !== oldName && this.cashierCounters.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+      this.showToast(`Nomor loket "${trimmed}" sudah ada!`, "warning");
+      return;
+    }
+
+    // Update di list loket
+    this.cashierCounters[index] = trimmed;
+    this.saveCashierCounters();
+
+    // Update pegawai yang ditugaskan ke loket ini
+    let updatedStaffCount = 0;
+    this.users.forEach(u => {
+      if (u.assignedCashier === oldName) {
+        u.assignedCashier = trimmed;
+        updatedStaffCount++;
+      }
+    });
+    if (updatedStaffCount > 0) {
+      this.saveUsers();
+      this.renderEmployeeTable();
+    }
+
+    // Update session aktif jika kasir sedang memakai loket ini
+    if (this.cashierSession && this.cashierSession.cashierNumber === oldName) {
+      this.cashierSession.cashierNumber = trimmed;
+      if (this.activeSession && this.activeSession.type === "cashier") {
+        this.activeSession.cashierNumber = trimmed;
+        this.saveActiveSession(this.activeSession);
+      }
+      this.updateCashierShiftUI();
+    }
+
+    this.renderCashierCounterOptions();
+    this.renderCashierCountersList();
+    this.showToast(`Nama loket diubah menjadi "${trimmed}"`, "success");
+  }
+
+  deleteCashierCounter(index) {
+    if (index < 0 || index >= this.cashierCounters.length) return;
+    const counterName = this.cashierCounters[index];
+
+    if (this.cashierCounters.length <= 1) {
+      this.showToast("Minimal harus ada 1 nomor loket kasir yang terdaftar!", "warning");
+      return;
+    }
+
+    if (!confirm(`Hapus nomor/loket "${counterName}" dari daftar?\n\nPegawai yang ditugaskan ke loket ini akan diatur menjadi "Bebas".`)) {
+      return;
+    }
+
+    this.cashierCounters.splice(index, 1);
+    this.saveCashierCounters();
+
+    // Sesuaikan pegawai yang ditugaskan
+    let updatedStaffCount = 0;
+    this.users.forEach(u => {
+      if (u.assignedCashier === counterName) {
+        u.assignedCashier = "Bebas";
+        updatedStaffCount++;
+      }
+    });
+    if (updatedStaffCount > 0) {
+      this.saveUsers();
+      this.renderEmployeeTable();
+    }
+
+    this.renderCashierCounterOptions();
+    this.renderCashierCountersList();
+    this.showToast(`Loket "${counterName}" telah dihapus`, "info");
+  }
+
   openEmployeeLoginModal() {
     const modal = document.getElementById("employeeLoginModal");
     const select = document.getElementById("empLoginSelect");
@@ -970,6 +1221,9 @@ class KasirApp {
     if (err) err.classList.add("hidden");
     if (pinInput) pinInput.value = "";
 
+    // Render ulang opsi loket kasir dinamis
+    this.renderCashierCounterOptions();
+
     // Populate active cashier users only with "-- Pilih Nama --" placeholder first
     const activeUsers = this.users.filter(u => u.status !== "inactive" && u.role !== "admin");
     if (select) {
@@ -978,10 +1232,16 @@ class KasirApp {
           ${u.name} (${u.userId}) - ${u.assignedCashier || 'Bebas'}
         </option>
       `).join("");
+      select.value = "";
     }
 
-    if (shiftSelect) shiftSelect.value = (this.cashierSession && this.cashierSession.shift) ? this.cashierSession.shift : "Shift 1 (Pagi)";
-    if (cashierSelect) cashierSelect.value = (this.cashierSession && this.cashierSession.cashierNumber) ? this.cashierSession.cashierNumber : "Kasir 01";
+    // Tampilkan placeholder default "-- Pilih Nomor Kasir --" dan "-- Pilih Shift --"
+    if (cashierSelect) {
+      cashierSelect.value = "";
+    }
+    if (shiftSelect) {
+      shiftSelect.value = "";
+    }
 
     this.onEmpLoginSelectChange();
     if (modal) modal.classList.remove("hidden");
@@ -999,14 +1259,19 @@ class KasirApp {
     const select = document.getElementById("empLoginSelect");
     const cashierSelect = document.getElementById("empLoginCashierNo");
     const pinInput = document.getElementById("empLoginPin");
-    if (!select || !cashierSelect) return;
+    if (!select) return;
 
-    const user = this.users.find(u => u.userId === select.value);
-    if (user && user.assignedCashier && user.assignedCashier !== "Bebas") {
-      cashierSelect.value = user.assignedCashier;
-    }
-    if (select.value && pinInput) {
-      pinInput.focus();
+    if (select.value) {
+      const user = this.users.find(u => u.userId === select.value);
+      if (user && user.assignedCashier && user.assignedCashier !== "Bebas" && cashierSelect) {
+        // Jika loket kasir yang ditugaskan ada di daftar cashierCounters, auto-pilih
+        if (this.cashierCounters.includes(user.assignedCashier)) {
+          cashierSelect.value = user.assignedCashier;
+        }
+      }
+      if (pinInput) {
+        pinInput.focus();
+      }
     }
   }
 
@@ -1020,13 +1285,31 @@ class KasirApp {
 
     const userId = select ? select.value : "";
     const enteredPin = pinInput ? pinInput.value.trim() : "";
+    const cashierNo = cashierSelect ? cashierSelect.value : "";
+    const shift = shiftSelect ? shiftSelect.value : "";
 
+    // 1. Validasi Nama Pegawai
     if (!userId) {
       this.showToast("Silakan pilih nama pegawai terlebih dahulu!", "warning");
       if (select) select.focus();
       return;
     }
 
+    // 2. Validasi Nomor / Loket Kasir
+    if (!cashierNo) {
+      this.showToast("Silakan pilih nomor / loket kasir terlebih dahulu!", "warning");
+      if (cashierSelect) cashierSelect.focus();
+      return;
+    }
+
+    // 3. Validasi Shift Kerja
+    if (!shift) {
+      this.showToast("Silakan pilih shift kerja terlebih dahulu!", "warning");
+      if (shiftSelect) shiftSelect.focus();
+      return;
+    }
+
+    // 4. Validasi PIN Pegawai
     const user = this.users.find(u => u.userId === userId && u.status !== "inactive");
     if (!user || user.pin !== enteredPin) {
       if (err) err.classList.remove("hidden");
@@ -1043,8 +1326,8 @@ class KasirApp {
       userId: user.userId,
       name: user.name,
       employeeName: user.name,
-      cashierNumber: (cashierSelect ? cashierSelect.value : "") || user.assignedCashier || "Kasir 01",
-      shift: shiftSelect ? shiftSelect.value : "Shift 1 (Pagi)",
+      cashierNumber: cashierNo,
+      shift: shift,
       shiftStart: new Date().toISOString()
     };
 
@@ -1329,10 +1612,15 @@ class KasirApp {
       nameInput.value = "";
       pinInput.value = "";
       if (roleSelect) roleSelect.value = role;
-      if (cashierSelect) cashierSelect.value = "Kasir 01";
+      if (cashierSelect) cashierSelect.value = this.cashierCounters[0] || "Bebas";
       if (statusSelect) statusSelect.value = "active";
     }
 
+    this.renderCashierCounterOptions();
+    if (userId) {
+      const u = this.users.find(x => x.userId === userId);
+      if (u && cashierSelect) cashierSelect.value = u.assignedCashier || this.cashierCounters[0] || "Bebas";
+    }
     this.onEmpRoleSelectChange();
     modal.classList.remove("hidden");
     setTimeout(() => (origId.value ? nameInput.focus() : idInput.focus()), 100);
