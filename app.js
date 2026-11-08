@@ -752,7 +752,7 @@ class KasirApp {
     }
   }
 
-  logoutActiveAccount() {
+  logoutActiveAccount(options = {}) {
     const prevName = this.activeSession ? this.activeSession.name : "Pengguna";
     this.saveActiveSession(null);
     this.currentRole = "cashier";
@@ -764,11 +764,13 @@ class KasirApp {
     this.updateCashierShiftUI();
     this.renderCart();
     this.switchTab("pos");
-    this.showToast(`Akun ${prevName} telah logout. Silakan login kembali.`, "info");
+    this.showToast(`Akun ${prevName} telah logout.`, "info");
 
-    setTimeout(() => {
-      this.openRoleChoiceModal();
-    }, 400);
+    if (!options.suppressModal) {
+      setTimeout(() => {
+        this.openRoleChoiceModal();
+      }, 400);
+    }
   }
 
   updateRoleUI() {
@@ -856,15 +858,15 @@ class KasirApp {
       // --- HEADER: ACTIVE OWNER / ADMIN BADGE ---
       if (cashierContainer) {
         cashierContainer.innerHTML = `
-          <div class="flex items-center justify-between w-full md:w-auto h-8 sm:h-9 ${bgBadge} border rounded-lg shadow-2xs overflow-hidden max-w-full">
+          <div class="flex items-center justify-between w-full md:w-auto h-9 ${bgBadge} border rounded-lg shadow-2xs overflow-hidden max-w-full">
             <div class="flex items-center space-x-1.5 px-2.5 h-full text-[11px] sm:text-xs font-bold truncate">
               <i class="fa-solid ${iconClass} shrink-0"></i>
               <span class="truncate">${name}</span>
               <span class="text-slate-300">•</span>
               <span class="${tagBg} text-white text-[10px] px-1.5 py-0.5 rounded font-bold shrink-0">${tagText}</span>
             </div>
-            <button onclick="app.logoutActiveAccount()" class="px-2.5 h-full flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 border-l border-slate-200 transition shrink-0" title="Keluar / Logout Akun ${roleTitle}">
-              <i class="fa-solid fa-power-off text-xs"></i>
+            <button type="button" onclick="event.stopPropagation(); app.logoutActiveAccount();" class="px-3 min-w-[36px] h-full flex items-center justify-center text-rose-500 hover:text-white hover:bg-rose-600 bg-rose-50/60 border-l border-slate-200 transition shrink-0 active:scale-95 cursor-pointer" title="Keluar / Logout Akun ${roleTitle}">
+              <i class="fa-solid fa-power-off text-sm"></i>
             </button>
           </div>
         `;
@@ -881,7 +883,7 @@ class KasirApp {
               <span class="font-bold ${isOwner ? 'text-purple-700' : 'text-blue-700'} shrink-0">${isOwner ? '👑 Kasir Utama (Pemilik)' : '🛡️ Kasir Utama (Admin)'}</span>
             </div>
             <div class="flex items-center gap-2 shrink-0 ml-auto">
-              <button onclick="app.openShiftReportModal()" class="text-[10px] ${isOwner ? 'text-purple-700 hover:text-purple-900 bg-purple-100/70 border-purple-200' : 'text-blue-700 hover:text-blue-900 bg-blue-100/70 border-blue-200'} px-2 py-0.5 rounded-md border font-bold transition" title="Lihat rekap transaksi">
+              <button type="button" onclick="app.openShiftReportModal()" class="text-[10px] ${isOwner ? 'text-purple-700 hover:text-purple-900 bg-purple-100/70 border-purple-200' : 'text-blue-700 hover:text-blue-900 bg-blue-100/70 border-blue-200'} px-2 py-0.5 rounded-md border font-bold transition" title="Lihat rekap transaksi">
                 <i class="fa-solid fa-calculator mr-1"></i>Rekap Kasir
               </button>
             </div>
@@ -893,16 +895,16 @@ class KasirApp {
       if (cashierContainer) {
         const shortShift = (this.cashierSession.shift || "Shift 1").split(" ")[0];
         cashierContainer.innerHTML = `
-          <div class="flex items-center justify-between w-full md:w-auto h-8 sm:h-9 bg-indigo-50 border border-indigo-200 rounded-lg shadow-2xs overflow-hidden max-w-full">
-            <button onclick="app.openEmployeeLoginModal()" class="flex items-center space-x-1.5 px-2.5 h-full hover:bg-indigo-100 text-indigo-950 text-[11px] sm:text-xs font-semibold transition active:scale-95 min-w-0 flex-1 truncate" title="Ganti Petugas Kasir / Shift">
+          <div class="flex items-center justify-between w-full md:w-auto h-9 bg-indigo-50 border border-indigo-200 rounded-lg shadow-2xs overflow-hidden max-w-full">
+            <button type="button" onclick="app.openEmployeeLoginModal()" class="flex items-center space-x-1.5 px-2.5 h-full hover:bg-indigo-100 text-indigo-950 text-[11px] sm:text-xs font-semibold transition active:scale-95 min-w-0 flex-1 truncate" title="Ganti Petugas Kasir / Shift">
               <i class="fa-solid fa-id-badge text-indigo-600 shrink-0"></i>
               <span class="truncate font-bold">${this.cashierSession.employeeName || 'Pegawai 1'}</span>
               <span class="text-indigo-300">•</span>
               <span class="text-indigo-700 shrink-0">${this.cashierSession.cashierNumber || 'Kasir 01'}</span>
               <span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shrink-0">${shortShift}</span>
             </button>
-            <button onclick="app.logoutCashier()" class="px-2.5 h-full flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 border-l border-indigo-200 transition shrink-0" title="Logout / Keluar Petugas Kasir">
-              <i class="fa-solid fa-power-off text-xs"></i>
+            <button type="button" onclick="event.stopPropagation(); app.logoutCashier();" class="px-3 min-w-[36px] h-full flex items-center justify-center text-rose-500 hover:text-white hover:bg-rose-600 bg-rose-50/60 border-l border-indigo-200 transition shrink-0 active:scale-95 cursor-pointer" title="Logout / Keluar Petugas Kasir">
+              <i class="fa-solid fa-power-off text-sm"></i>
             </button>
           </div>
         `;
@@ -1059,9 +1061,11 @@ class KasirApp {
   }
 
   logoutCashier() {
-    if (confirm(`Petugas ${this.cashierSession.employeeName} ingin keluar dari sesi kasir?\n\nKlik OK untuk logout dan melihat Rekap Tutup Shift.`)) {
-      this.openShiftReportModal();
-      this.logoutActiveAccount();
+    const employeeName = (this.cashierSession && this.cashierSession.employeeName) || "Petugas Kasir";
+    if (confirm(`Petugas ${employeeName} ingin keluar dari sesi kasir?\n\nKlik OK untuk logout dan melihat Rekap Tutup Shift.`)) {
+      const closingSession = { ...this.cashierSession };
+      this.logoutActiveAccount({ suppressModal: true });
+      this.openShiftReportModal(closingSession);
     }
   }
 
@@ -1444,21 +1448,22 @@ class KasirApp {
   }
 
   // ==================== REKAP TUTUP SHIFT KASIR (CLOSING REPORT) ====================
-  openShiftReportModal() {
-    this.closeCashierShiftModal();
+  openShiftReportModal(customSession = null) {
     const modal = document.getElementById("shiftReportModal");
-    const shiftData = this.calcShiftData();
-
-    const session = this.cashierSession || {
+    const session = customSession || this.cashierSession || this.lastClosingSession || {
       cashierNumber: "Kasir 01",
       employeeName: "Petugas Kasir",
       shift: "Shift 1",
       shiftStart: new Date().toISOString()
     };
+    this.lastClosingSession = { ...session };
 
-    document.getElementById("repCashierNumber").textContent = session.cashierNumber;
-    document.getElementById("repEmployeeName").textContent = session.employeeName;
-    document.getElementById("repShiftName").textContent = session.shift;
+    const shiftData = this.calcShiftData(session);
+    this.lastClosingShiftData = shiftData;
+
+    document.getElementById("repCashierNumber").textContent = session.cashierNumber || "Kasir 01";
+    document.getElementById("repEmployeeName").textContent = session.employeeName || "Petugas Kasir";
+    document.getElementById("repShiftName").textContent = session.shift || "Shift 1";
 
     const startDt = new Date(session.shiftStart);
     document.getElementById("repStartTime").textContent = isNaN(startDt) ? "-" : startDt.toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
@@ -1476,16 +1481,22 @@ class KasirApp {
 
     document.getElementById("repGrossProfit").textContent = `Rp ${shiftData.grossProfit.toLocaleString("id-ID")}`;
 
-    modal.classList.remove("hidden");
+    if (modal) modal.classList.remove("hidden");
   }
 
   closeShiftReportModal() {
     const modal = document.getElementById("shiftReportModal");
     if (modal) modal.classList.add("hidden");
+    // Jika kasir baru saja logout dan modal ditutup, buka pilihan login kembali
+    if (!this.activeSession && !this.isCashierLoggedIn) {
+      setTimeout(() => {
+        this.openRoleChoiceModal();
+      }, 300);
+    }
   }
 
-  calcShiftData() {
-    const session = this.cashierSession || {
+  calcShiftData(targetSession = null) {
+    const session = targetSession || this.cashierSession || this.lastClosingSession || {
       cashierNumber: "Kasir 01",
       employeeName: "Petugas Kasir",
       shift: "Shift 1",
