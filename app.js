@@ -144,7 +144,7 @@ const DEFAULT_USERS = [
     name: "Budi Santoso",
     pin: "1111",
     role: "cashier",
-    assignedCashier: "Kasir 01",
+    assignedCashier: "Kasir 1",
     status: "active"
   },
   {
@@ -152,17 +152,14 @@ const DEFAULT_USERS = [
     name: "Siti Rahma",
     pin: "2222",
     role: "cashier",
-    assignedCashier: "Kasir 02",
+    assignedCashier: "Bebas",
     status: "active"
   }
 ];
 
-// Initial Loket / Nomor Kasir (Dapat dikelola oleh Admin & Pemilik Toko)
+// Initial Loket / Nomor Kasir (Otomatis bertambah jika sudah terisi: Kasir 1 -> Kasir 2, Kasir Mobile (HP) -> Kasir Mobile 2)
 const DEFAULT_CASHIER_COUNTERS = [
-  "Kasir 01",
-  "Kasir 02",
-  "Kasir 03",
-  "Kasir 04",
+  "Kasir 1",
   "Kasir Mobile (HP)"
 ];
 
@@ -180,10 +177,19 @@ class KasirApp {
     // Active Account Session (Hanya 1 akun aktif per-device: 'owner' | 'admin' | 'cashier' | null)
     this.activeSession = null;
     this.currentRole = "cashier"; // UI state
-    this.isCashierLoggedIn = false;
-    
+    // Setup Device ID unik per-browser/device
+    let storedDeviceId = localStorage.getItem("toko_device_id");
+    if (!storedDeviceId) {
+      storedDeviceId = "DEV-" + Date.now().toString(36) + "-" + Math.random().toString(36).substring(2, 7).toUpperCase();
+      localStorage.setItem("toko_device_id", storedDeviceId);
+    }
+    this.deviceId = storedDeviceId;
+
     // Load persisted state from LocalStorage
     this.loadState();
+
+    // Setup Cross-Device / Tab Session Sync Channel
+    this.initDeviceSessionSync();
 
     // Setup network listeners (Online/Offline)
     this.initNetworkMonitor();
@@ -366,14 +372,202 @@ class KasirApp {
     localStorage.setItem("toko_admins", JSON.stringify(this.admins));
   }
 
+  // ==================== MULTI-DEVICE & AUTO-INCREMENT COUNTERS ====================
+  initDeviceSessionSync() {
+    this.deviceSyncChannel = null;
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        this.deviceSyncChannel = new BroadcastChannel("toko_pos_device_sync");
+        this.deviceSyncChannel.onmessage = (event) => {
+          this.handleDeviceSyncMessage(event.data);
+        };
+      }
+    } catch (e) {
+      console.warn("BroadcastChannel not supported:", e);
+    }
+
+    // Listener localStorage event (bila beda window/tab di browser yang sama)
+    window.addEventListener("storage", (e) => {
+      if (e.key === "toko_active_cashier_devices") {
+        this.renderCashierCounterOptions();
+      }
+    });
+
+    // Kirim heartbeat berkala setiap 5 detik jika ada sesi kasir aktif
+    setInterval(() => {
+      if (this.activeSession && this.activeSession.type === "cashier" && this.cashierSession) {
+        this.broadcastCashierHeartbeat();
+      }
+    }, 5000);
+
+    // Saat tab/halaman ditutup, lepaskan loket kasir dari daftar aktif
+    window.addEventListener("beforeunload", () => {
+      if (this.activeSession && this.activeSession.type === "cashier") {
+        this.unregisterActiveCashierDevice(this.cashierSession ? this.cashierSession.cashierNumber : null);
+      }
+    });
+  }
+
+  handleDeviceSyncMessage(data) {
+    if (!data || !data.type) return;
+
+    if (data.type === "HEARTBEAT" || data.type === "LOGIN") {
+      this.recordActiveCashierDevice(data.deviceId, data.cashierNumber, data.employeeName, data.timestamp);
+      this.renderCashierCounterOptions();
+    } else if (data.type === "LOGOUT") {
+      this.removeActiveCashierDevice(data.deviceId, data.cashierNumber);
+      this.renderCashierCounterOptions();
+    }
+  }
+
+  // Ambil daftar loket kasir yang sedang aktif digunakan di device lain (dalam 25 detik terakhir)
+  getActiveCashierDevices() {
+    const raw = localStorage.getItem("toko_active_cashier_devices");
+    let devices = {};
+    if (raw) {
+      try {
+        devices = JSON.parse(raw);
+      } catch (e) {
+        devices = {};
+      }
+    }
+
+    // Bersihkan sesi usang yang lebih dari 25 detik tidak kirim heartbeat
+    const now = Date.now();
+    let changed = false;
+    Object.keys(devices).forEach(devId => {
+      // Kecuali device saat ini jika sedang login kasir
+      if (devId === this.deviceId && this.activeSession && this.activeSession.type === "cashier") {
+        devices[devId].timestamp = now;
+        changed = true;
+      } else if (!devices[devId].timestamp || (now - devices[devId].timestamp > 25000)) {
+        delete devices[devId];
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      localStorage.setItem("toko_active_cashier_devices", JSON.stringify(devices));
+    }
+
+    return devices;
+  }
+
+  recordActiveCashierDevice(deviceId, cashierNumber, employeeName, timestamp) {
+    if (!deviceId || !cashierNumber) return;
+    const devices = this.getActiveCashierDevices();
+    devices[deviceId] = {
+      cashierNumber,
+      employeeName: employeeName || "Kasir",
+      timestamp: timestamp || Date.now()
+    };
+    localStorage.setItem("toko_active_cashier_devices", JSON.stringify(devices));
+  }
+
+  removeActiveCashierDevice(deviceId, cashierNumber) {
+    const devices = this.getActiveCashierDevices();
+    let changed = false;
+    if (deviceId && devices[deviceId]) {
+      delete devices[deviceId];
+      changed = true;
+    }
+    // Jika deviceId cocok atau cashierNumber cocok
+    if (cashierNumber) {
+      Object.keys(devices).forEach(id => {
+        if (devices[id] && devices[id].cashierNumber === cashierNumber && id === deviceId) {
+          delete devices[id];
+          changed = true;
+        }
+      });
+    }
+    if (changed) {
+      localStorage.setItem("toko_active_cashier_devices", JSON.stringify(devices));
+    }
+  }
+
+  broadcastCashierHeartbeat() {
+    if (!this.cashierSession || !this.cashierSession.cashierNumber) return;
+    const payload = {
+      type: "HEARTBEAT",
+      deviceId: this.deviceId,
+      cashierNumber: this.cashierSession.cashierNumber,
+      employeeName: this.cashierSession.employeeName,
+      timestamp: Date.now()
+    };
+    this.recordActiveCashierDevice(payload.deviceId, payload.cashierNumber, payload.employeeName, payload.timestamp);
+    if (this.deviceSyncChannel) {
+      try { this.deviceSyncChannel.postMessage(payload); } catch (e) {}
+    }
+  }
+
+  broadcastCashierLogin(cashierNumber, employeeName) {
+    const payload = {
+      type: "LOGIN",
+      deviceId: this.deviceId,
+      cashierNumber: cashierNumber,
+      employeeName: employeeName,
+      timestamp: Date.now()
+    };
+    this.recordActiveCashierDevice(payload.deviceId, payload.cashierNumber, payload.employeeName, payload.timestamp);
+    if (this.deviceSyncChannel) {
+      try { this.deviceSyncChannel.postMessage(payload); } catch (e) {}
+    }
+  }
+
+  unregisterActiveCashierDevice(cashierNumber) {
+    this.removeActiveCashierDevice(this.deviceId, cashierNumber);
+    if (this.deviceSyncChannel) {
+      try {
+        this.deviceSyncChannel.postMessage({
+          type: "LOGOUT",
+          deviceId: this.deviceId,
+          cashierNumber: cashierNumber,
+          timestamp: Date.now()
+        });
+      } catch (e) {}
+    }
+  }
+
+  // Hitung nomor loket berikutnya secara otomatis (Kasir 1 -> Kasir 2, Kasir Mobile (HP) -> Kasir Mobile 2)
+  getNextCounterName(prefix) {
+    let maxNum = 1;
+    const isMobile = prefix.toLowerCase().includes("mobile");
+
+    this.cashierCounters.forEach(c => {
+      if (isMobile) {
+        if (c.toLowerCase().includes("mobile")) {
+          const match = c.match(/\d+/);
+          const num = match ? parseInt(match[0], 10) : 1;
+          if (num >= maxNum) maxNum = num + 1;
+        }
+      } else {
+        if (c.toLowerCase().startsWith("kasir") && !c.toLowerCase().includes("mobile")) {
+          const match = c.match(/\d+/);
+          const num = match ? parseInt(match[0], 10) : 1;
+          if (num >= maxNum) maxNum = num + 1;
+        }
+      }
+    });
+
+    if (isMobile) {
+      return `Kasir Mobile ${maxNum}`;
+    } else {
+      return `Kasir ${maxNum}`;
+    }
+  }
+
   saveActiveSession(session) {
     this.activeSession = session;
     if (session) {
       localStorage.setItem("toko_active_session", JSON.stringify(session));
+      if (session.type === "cashier" && session.cashierNumber) {
+        this.broadcastCashierLogin(session.cashierNumber, session.name);
+      }
     } else {
       localStorage.removeItem("toko_active_session");
       localStorage.removeItem("toko_cashier_logged_in");
       localStorage.removeItem("toko_current_session");
+      this.unregisterActiveCashierDevice();
     }
   }
 
@@ -988,7 +1182,7 @@ class KasirApp {
     }
   }
 
-  // Render dropdown pilihan loket kasir di berbagai form & filter
+  // Render dropdown pilihan loket kasir di berbagai form & filter dengan deteksi device aktif
   renderCashierCounterOptions() {
     const loginCashierSelect = document.getElementById("empLoginCashierNo");
     const defaultCashierSelect = document.getElementById("empDefaultCashier");
@@ -998,14 +1192,60 @@ class KasirApp {
     const currentDefaultVal = defaultCashierSelect ? defaultCashierSelect.value : "";
     const currentHistVal = historyCashierFilter ? historyCashierFilter.value : "all";
 
+    // Dapatkan data loket yang sedang dipakai di device lain
+    const activeDevices = this.getActiveCashierDevices();
+    const busyCounters = new Map(); // counterName -> employeeName
+    Object.keys(activeDevices).forEach(devId => {
+      // Abaikan jika deviceId adalah device saat ini
+      if (devId !== this.deviceId && activeDevices[devId]) {
+        busyCounters.set(activeDevices[devId].cashierNumber, activeDevices[devId].employeeName);
+      }
+    });
+
+    // Otomatis tambahkan loket berikutnya jika loket utama sedang login di device lain
+    // Jika "Kasir 1" sedang login -> pastikan "Kasir 2" tersedia di cashierCounters
+    if (busyCounters.has("Kasir 1") && !this.cashierCounters.includes("Kasir 2")) {
+      const nextKasir = this.getNextCounterName("Kasir");
+      if (!this.cashierCounters.includes(nextKasir)) {
+        this.cashierCounters.push(nextKasir);
+        this.saveCashierCounters();
+      }
+    }
+    // Jika "Kasir Mobile (HP)" sedang login -> pastikan "Kasir Mobile 2" tersedia
+    if (busyCounters.has("Kasir Mobile (HP)") && !this.cashierCounters.includes("Kasir Mobile 2")) {
+      const nextMobile = this.getNextCounterName("Kasir Mobile");
+      if (!this.cashierCounters.includes(nextMobile)) {
+        this.cashierCounters.push(nextMobile);
+        this.saveCashierCounters();
+      }
+    }
+
+    // Pastikan loket minimal selalu ada "Kasir 1" dan "Kasir Mobile (HP)"
+    if (!this.cashierCounters.includes("Kasir 1")) {
+      this.cashierCounters.unshift("Kasir 1");
+      this.saveCashierCounters();
+    }
+    if (!this.cashierCounters.includes("Kasir Mobile (HP)")) {
+      this.cashierCounters.push("Kasir Mobile (HP)");
+      this.saveCashierCounters();
+    }
+
     // 1. Dropdown Modal Login Kasir
     if (loginCashierSelect) {
       let html = `<option value="" disabled selected>-- Pilih Nomor Kasir --</option>`;
       this.cashierCounters.forEach(counter => {
-        html += `<option value="${counter}">${counter}</option>`;
+        const isBusy = busyCounters.has(counter);
+        const busyUser = busyCounters.get(counter);
+        if (isBusy) {
+          html += `<option value="${counter}" disabled class="text-rose-500 font-normal bg-rose-50/60">⛔ ${counter} (Sedang Aktif: ${busyUser})</option>`;
+        } else {
+          html += `<option value="${counter}">${counter}</option>`;
+        }
       });
       loginCashierSelect.innerHTML = html;
-      if (currentLoginVal && this.cashierCounters.includes(currentLoginVal)) {
+
+      // Jika pilihan sebelumnya tidak sedang sibuk, pertahankan
+      if (currentLoginVal && this.cashierCounters.includes(currentLoginVal) && !busyCounters.has(currentLoginVal)) {
         loginCashierSelect.value = currentLoginVal;
       }
     }
@@ -1264,9 +1504,19 @@ class KasirApp {
     if (select.value) {
       const user = this.users.find(u => u.userId === select.value);
       if (user && user.assignedCashier && user.assignedCashier !== "Bebas" && cashierSelect) {
-        // Jika loket kasir yang ditugaskan ada di daftar cashierCounters, auto-pilih
-        if (this.cashierCounters.includes(user.assignedCashier)) {
+        // Cek apakah loket kasir pegawai sedang dipakai di device lain
+        const activeDevices = this.getActiveCashierDevices();
+        const busyCounters = new Set();
+        Object.keys(activeDevices).forEach(devId => {
+          if (devId !== this.deviceId && activeDevices[devId]) {
+            busyCounters.add(activeDevices[devId].cashierNumber);
+          }
+        });
+
+        if (this.cashierCounters.includes(user.assignedCashier) && !busyCounters.has(user.assignedCashier)) {
           cashierSelect.value = user.assignedCashier;
+        } else if (busyCounters.has(user.assignedCashier)) {
+          this.showToast(`Loket default ${user.assignedCashier} sedang aktif di device lain. Silakan pilih nomor loket lain.`, "info");
         }
       }
       if (pinInput) {
@@ -1299,6 +1549,25 @@ class KasirApp {
     if (!cashierNo) {
       this.showToast("Silakan pilih nomor / loket kasir terlebih dahulu!", "warning");
       if (cashierSelect) cashierSelect.focus();
+      return;
+    }
+
+    // 2B. Cek apakah nomor kasir sudah sedang aktif di device lain!
+    const activeDevices = this.getActiveCashierDevices();
+    let alreadyActiveDevice = null;
+    Object.keys(activeDevices).forEach(devId => {
+      if (devId !== this.deviceId && activeDevices[devId] && activeDevices[devId].cashierNumber === cashierNo) {
+        alreadyActiveDevice = activeDevices[devId];
+      }
+    });
+
+    if (alreadyActiveDevice) {
+      this.showToast(`⛔ "${cashierNo}" sudah login di device lain oleh ${alreadyActiveDevice.employeeName}! Silakan pilih nomor loket lain.`, "warning");
+      this.renderCashierCounterOptions();
+      if (cashierSelect) {
+        cashierSelect.value = "";
+        cashierSelect.focus();
+      }
       return;
     }
 
