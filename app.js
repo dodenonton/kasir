@@ -328,7 +328,7 @@ class KasirApp {
       this.cashierSession = {
         userId: this.activeSession.userId,
         employeeName: this.activeSession.name,
-        cashierNumber: this.activeSession.cashierNumber || "Kasir 01",
+        cashierNumber: this.activeSession.cashierNumber || "Kasir 1",
         shift: this.activeSession.shift || "Shift 1 (Pagi)",
         shiftStart: this.activeSession.shiftStart || new Date().toISOString()
       };
@@ -349,15 +349,39 @@ class KasirApp {
         loadedCounters = null;
       }
     }
+    // Bersihkan loket lawas "Kasir 01" s/d "Kasir 04" jika masih ada di storage pengguna
+    const legacyCounters = ["Kasir 01", "Kasir 02", "Kasir 03", "Kasir 04"];
+    if (Array.isArray(loadedCounters)) {
+      loadedCounters = loadedCounters.filter(c => !legacyCounters.includes(c));
+    }
+
     this.cashierCounters = (Array.isArray(loadedCounters) && loadedCounters.length > 0)
       ? loadedCounters
       : DEFAULT_CASHIER_COUNTERS;
 
-    // Save defaults back if newly initiated
+    // Pastikan Kasir 1 dan Kasir Mobile (HP) selalu tersedia
+    if (!this.cashierCounters.includes("Kasir 1")) {
+      this.cashierCounters.unshift("Kasir 1");
+    }
+    if (!this.cashierCounters.includes("Kasir Mobile (HP)")) {
+      this.cashierCounters.push("Kasir Mobile (HP)");
+    }
+
+    // Bersihkan juga penugasan pegawai dari loket lawas
+    let staffUpdated = false;
+    this.users.forEach(u => {
+      if (legacyCounters.includes(u.assignedCashier)) {
+        u.assignedCashier = u.assignedCashier === "Kasir 01" ? "Kasir 1" : "Bebas";
+        staffUpdated = true;
+      }
+    });
+    if (staffUpdated) this.saveUsers();
+
+    // Save defaults back if newly initiated or cleaned
     if (!savedProducts) this.saveProducts();
     if (!savedExpenses) this.saveExpenses();
     if (!savedUsers) this.saveUsers();
-    if (!savedCounters) this.saveCashierCounters();
+    this.saveCashierCounters();
   }
 
   saveCashierCounters() {
@@ -1123,7 +1147,7 @@ class KasirApp {
               <i class="fa-solid fa-id-badge text-indigo-600 shrink-0"></i>
               <span class="truncate font-bold">${this.cashierSession.employeeName || 'Pegawai 1'}</span>
               <span class="text-indigo-300">•</span>
-              <span class="text-indigo-700 shrink-0">${this.cashierSession.cashierNumber || 'Kasir 01'}</span>
+              <span class="text-indigo-700 shrink-0">${this.cashierSession.cashierNumber || 'Kasir 1'}</span>
               <span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shrink-0">${shortShift}</span>
             </button>
             <button type="button" onclick="event.stopPropagation(); app.logoutCashier();" class="px-3 min-w-[36px] h-full flex items-center justify-center text-rose-500 hover:text-white hover:bg-rose-600 bg-rose-50/60 border-l border-indigo-200 transition shrink-0 active:scale-95 cursor-pointer" title="Logout / Keluar Petugas Kasir">
@@ -1139,7 +1163,7 @@ class KasirApp {
           <div class="px-3.5 py-2 bg-indigo-50/50 border-b border-indigo-100/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
             <div class="flex items-center gap-1.5 min-w-0 flex-1">
               <i class="fa-solid fa-user-tag text-indigo-600 text-xs shrink-0"></i>
-              <span class="truncate">Petugas: <b class="text-slate-900">${this.cashierSession.cashierNumber || 'Kasir 01'} (${this.cashierSession.employeeName || 'Pegawai 1'})</b></span>
+              <span class="truncate">Petugas: <b class="text-slate-900">${this.cashierSession.cashierNumber || 'Kasir 1'} (${this.cashierSession.employeeName || 'Pegawai 1'})</b></span>
               <span class="text-slate-300">•</span>
               <span class="font-bold text-indigo-700 shrink-0">${(this.cashierSession.shift || 'Shift 1').split(' ')[0]}</span>
             </div>
@@ -1218,6 +1242,13 @@ class KasirApp {
         this.cashierCounters.push(nextMobile);
         this.saveCashierCounters();
       }
+    }
+
+    // Pastikan loket lawas "Kasir 01" s/d "Kasir 04" selalu disingkirkan
+    const legacyCounters = ["Kasir 01", "Kasir 02", "Kasir 03", "Kasir 04"];
+    if (this.cashierCounters.some(c => legacyCounters.includes(c))) {
+      this.cashierCounters = this.cashierCounters.filter(c => !legacyCounters.includes(c));
+      this.saveCashierCounters();
     }
 
     // Pastikan loket minimal selalu ada "Kasir 1" dan "Kasir Mobile (HP)"
@@ -1868,7 +1899,7 @@ class KasirApp {
       nameInput.value = u.name;
       pinInput.value = u.pin;
       if (roleSelect) roleSelect.value = isAdmRole ? "cashier" : (u.role || "cashier");
-      if (cashierSelect) cashierSelect.value = u.assignedCashier || "Kasir 01";
+      if (cashierSelect) cashierSelect.value = u.assignedCashier || "Kasir 1";
       if (statusSelect) statusSelect.value = u.status || "active";
     } else {
       const role = isAdmRole ? "cashier" : (presetRole || "cashier");
@@ -2008,7 +2039,7 @@ class KasirApp {
   openShiftReportModal(customSession = null) {
     const modal = document.getElementById("shiftReportModal");
     const session = customSession || this.cashierSession || this.lastClosingSession || {
-      cashierNumber: "Kasir 01",
+      cashierNumber: "Kasir 1",
       employeeName: "Petugas Kasir",
       shift: "Shift 1",
       shiftStart: new Date().toISOString()
@@ -2018,7 +2049,7 @@ class KasirApp {
     const shiftData = this.calcShiftData(session);
     this.lastClosingShiftData = shiftData;
 
-    document.getElementById("repCashierNumber").textContent = session.cashierNumber || "Kasir 01";
+    document.getElementById("repCashierNumber").textContent = session.cashierNumber || "Kasir 1";
     document.getElementById("repEmployeeName").textContent = session.employeeName || "Petugas Kasir";
     document.getElementById("repShiftName").textContent = session.shift || "Shift 1";
 
@@ -2054,7 +2085,7 @@ class KasirApp {
 
   calcShiftData(targetSession = null) {
     const session = targetSession || this.cashierSession || this.lastClosingSession || {
-      cashierNumber: "Kasir 01",
+      cashierNumber: "Kasir 1",
       employeeName: "Petugas Kasir",
       shift: "Shift 1",
       shiftStart: new Date().toISOString()
@@ -2099,7 +2130,7 @@ class KasirApp {
     const container = document.getElementById("receiptPrintArea");
 
     const session = this.cashierSession || {
-      cashierNumber: "Kasir 01",
+      cashierNumber: "Kasir 1",
       employeeName: "Petugas Kasir",
       shift: "Shift 1",
       shiftStart: new Date().toISOString()
@@ -2622,7 +2653,7 @@ class KasirApp {
       employeeName: this.activeSession.name,
       shift: this.activeSession.type === "owner" ? "Owner Shift" : "Admin Shift"
     } : {
-      cashierNumber: "Kasir 01",
+      cashierNumber: "Kasir 1",
       employeeName: "Petugas Kasir",
       shift: "Shift 1"
     });
@@ -2637,7 +2668,7 @@ class KasirApp {
       time: timeStr,
       timestamp: now.getTime(),
       cashier: cashierLabel,
-      cashierNumber: activeStaff.cashierNumber || "Kasir 01",
+      cashierNumber: activeStaff.cashierNumber || "Kasir 1",
       employeeName: activeStaff.employeeName || "Kasir",
       shift: activeStaff.shift || "Non-Shift",
       customerName: customerName,
@@ -2713,7 +2744,7 @@ class KasirApp {
         </div>
         <div class="flex justify-between">
           <span>No. Kasir:</span>
-          <span class="font-bold">${tx.cashierNumber || 'Kasir 01'} (${tx.employeeName || tx.cashier})</span>
+          <span class="font-bold">${tx.cashierNumber || 'Kasir 1'} (${tx.employeeName || tx.cashier})</span>
         </div>
         <div class="flex justify-between">
           <span>Shift:</span>
@@ -2805,7 +2836,7 @@ class KasirApp {
           <td class="py-3 px-4 font-mono font-bold text-indigo-600">${tx.invoiceNo}</td>
           <td class="py-3 px-4 text-slate-500">${tx.date} <span class="text-[10px] block">${tx.time}</span></td>
           <td class="py-3 px-4">
-            <span class="font-bold text-slate-900">${tx.cashierNumber || 'Kasir 01'}</span>
+            <span class="font-bold text-slate-900">${tx.cashierNumber || 'Kasir 1'}</span>
             <span class="text-[10px] block text-slate-500 font-medium">${cashierDisplayName} • <b class="text-indigo-600">${shiftDisplayName}</b></span>
           </td>
           <td class="py-3 px-4 font-semibold text-slate-800">${tx.customerName}</td>
